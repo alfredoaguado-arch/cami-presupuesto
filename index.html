@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CAMI — Presupuesto</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#EFEFED;font-family:'Courier New',monospace;min-height:100vh;padding:1.5rem 1rem}
+.container{max-width:820px;margin:0 auto;background:#fff;border:0.5px solid #d3d1c7;border-radius:10px;overflow:hidden}
+.masthead{background:#1a1a18;display:flex;align-items:center;justify-content:space-between;padding:14px 2rem}
+.logo-txt{font-size:22px;font-weight:900;color:#fff;letter-spacing:.2em}
+.sub-logo{font-size:8px;color:#888780;letter-spacing:.04em;margin-top:3px}
+.masthead-right{text-align:right}
+.doc-title{font-size:11px;color:#888780;letter-spacing:.1em;text-transform:uppercase}
+.doc-sub{font-size:15px;font-weight:700;color:#fff;margin-top:2px}
+.form-body{padding:1.5rem 2rem}
+.section{margin-bottom:1.25rem}
+.section-title{font-size:11px;font-weight:700;color:#4A4A48;letter-spacing:.1em;text-transform:uppercase;border-bottom:0.5px solid #d3d1c7;padding-bottom:8px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
+.fl{font-size:11px;color:#888780;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;display:block}
+.req{color:#A32D2D}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+input,select,textarea{width:100%;padding:9px 11px;border:0.5px solid #d3d1c7;border-radius:6px;font-family:'Courier New',monospace;font-size:13px;background:#fafaf8;color:#1a1a18;outline:none;transition:border .15s}
+input:focus,select:focus,textarea:focus{border-color:#4A4A48;background:#fff}
+textarea{resize:vertical;min-height:60px}
+.partidas-wrap{overflow-x:auto;margin-bottom:.75rem}
+.pt{width:100%;border-collapse:collapse;font-size:12px;min-width:700px}
+.pt th{background:#f5f3ee;color:#888780;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:7px 8px;text-align:left;border-bottom:0.5px solid #d3d1c7;font-size:10px}
+.pt td{padding:5px;border-bottom:0.5px solid #EFEFED;vertical-align:top}
+.pt td input,.pt td select{padding:6px 7px;font-size:11px}
+.group-row td{background:#1a1a18;color:#fff;font-weight:700;font-size:11px;padding:5px 8px}
+.group-row input{background:transparent;color:#fff;border:none;font-weight:700;font-size:11px;padding:2px}
+.imp-val{font-weight:700;color:#4A4A48;font-size:11px}
+.btn-add-group,.btn-add-item{background:#EFEFED;color:#4A4A48;border:0.5px solid #D3D1C7;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:'Courier New',monospace}
+.btn-add-group:hover,.btn-add-item:hover{background:#D3D1C7}
+.btn-del{background:none;border:none;color:#d3d1c7;font-size:15px;cursor:pointer;padding:0 3px}
+.btn-del:hover{color:#A32D2D}
+.totals{text-align:right;margin-top:.5rem}
+.totals table{margin-left:auto;border-collapse:collapse;min-width:260px}
+.totals td{padding:4px 12px;color:#4A4A48;font-size:13px}
+.totals td:last-child{font-weight:700;text-align:right}
+.total-final td{font-size:15px;border-top:1px solid #4A4A48;padding-top:8px}
+.letras{font-size:11px;color:#4A4A48;font-style:italic;margin-top:.5rem;padding:8px 12px;background:#f5f3ee;border-radius:4px;border:0.5px solid #d3d1c7}
+.btn-row{display:flex;gap:10px;margin-top:1rem}
+.btn-pdf{flex:1;padding:13px;background:#4A4A48;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Courier New',monospace;letter-spacing:.04em;transition:background .15s}
+.btn-pdf:hover{background:#333331}
+.btn-pdf:disabled{background:#d3d1c7;cursor:not-allowed}
+.toast{display:none;padding:10px 16px;border-radius:6px;font-size:12px;margin-top:10px;line-height:1.6}
+.toast.show{display:block}
+.toast.ok{background:#EAF3DE;color:#3B6D11;border:0.5px solid #C0DD97}
+.toast.err{background:#FCEBEB;color:#A32D2D;border:0.5px solid #F7C1C1}
+@media(max-width:580px){.form-body{padding:1rem}.grid2,.grid3{grid-template-columns:1fr}.btn-row{flex-direction:column}.masthead{padding:12px 1rem}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="masthead">
+    <div>
+      <div class="logo-txt">CAMI</div>
+      <div class="sub-logo">COMERCIALIZADORA DE ACEROS MANUFACTURADOS PARA LA INDUSTRIA</div>
+    </div>
+    <div class="masthead-right">
+      <div class="doc-title">Cotizacion</div>
+      <div class="doc-sub">Presupuesto</div>
+    </div>
+  </div>
+  <div class="form-body">
+    <div class="section">
+      <div class="section-title">Datos del cliente</div>
+      <div class="grid3" style="margin-bottom:14px">
+        <div><label class="fl">Cliente <span class="req">*</span></label><input type="text" id="cliente" placeholder="Nombre del cliente"/></div>
+        <div><label class="fl">Duracion <span class="req">*</span></label><input type="text" id="duracion" placeholder="ej. 15 dias habiles"/></div>
+        <div><label class="fl">Fecha <span class="req">*</span></label><input type="date" id="fecha"/></div>
+      </div>
+      <div class="grid2">
+        <div><label class="fl">Obra / Proyecto <span class="req">*</span></label><input type="text" id="obra" placeholder="Nombre del proyecto u obra"/></div>
+        <div><label class="fl">Lugar</label><input type="text" id="lugar" placeholder="Ciudad / ubicacion"/></div>
+      </div>
+    </div>
+    <div class="section">
+      <label class="fl">Titulo del presupuesto <span class="req">*</span></label>
+      <input type="text" id="titulo" placeholder="ej. MUEBLES HILTON" style="font-weight:700;font-size:14px;text-transform:uppercase"/>
+    </div>
+    <div class="section">
+      <div class="section-title">
+        <span>Partidas <span class="req">*</span></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn-add-group" onclick="addGrupo()">+ Grupo</button>
+          <button class="btn-add-item" onclick="addItem()">+ Concepto</button>
+        </div>
+      </div>
+      <div class="partidas-wrap">
+        <table class="pt">
+          <thead><tr>
+            <th style="width:10%">Codigo</th>
+            <th style="width:35%">Concepto</th>
+            <th style="width:9%">Unidad</th>
+            <th style="width:9%">Cantidad</th>
+            <th style="width:13%">P. Unitario</th>
+            <th style="width:14%">Importe</th>
+            <th style="width:4%"></th>
+          </tr></thead>
+          <tbody id="partidas-body"></tbody>
+        </table>
+      </div>
+      <div class="totals">
+        <table>
+          <tr><td>SUB TOTAL</td><td id="subtotal">$0.00</td></tr>
+          <tr><td>IVA (16%)</td><td id="iva-t">$0.00</td></tr>
+          <tr class="total-final"><td><b>TOTAL</b></td><td id="gran-total"><b>$0.00</b></td></tr>
+        </table>
+      </div>
+      <div class="letras" id="letras">&nbsp;</div>
+    </div>
+    <div class="section">
+      <label class="fl">Observaciones</label>
+      <textarea id="obs" placeholder="Notas adicionales para el cliente..." rows="3"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-pdf" id="btn-pdf" onclick="generarPDF()">Generar PDF</button>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+<script>
+document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+
+const BANCOS=[''];
+function addGrupo(){
+  const tr=document.createElement('tr');
+  tr.className='group-row'; tr.dataset.tipo='grupo';
+  tr.innerHTML='<td colspan="6"><input type="text" placeholder="NOMBRE DEL GRUPO (ej. GPA)" style="width:100%"/></td><td><button class="btn-del" style="color:#666" onclick="delRow(this)">x</button></td>';
+  document.getElementById('partidas-body').appendChild(tr);
+}
+function addItem(){
+  const tr=document.createElement('tr');
+  tr.dataset.tipo='item';
+  tr.innerHTML=
+    '<td><input type="text" placeholder="GPA-010"/></td>'+
+    '<td><textarea rows="2" style="font-size:11px;padding:5px 6px;resize:vertical" placeholder="Descripcion del concepto..."></textarea></td>'+
+    '<td><input type="text" placeholder="PZAS"/></td>'+
+    '<td><input type="number" min="0" step="any" placeholder="0" oninput="calc(this)"/></td>'+
+    '<td><input type="number" min="0" step="0.01" placeholder="0.00" oninput="calc(this)"/></td>'+
+    '<td style="text-align:right;vertical-align:middle"><span class="imp-val">$0.00</span></td>'+
+    '<td><button class="btn-del" onclick="delRow(this)">x</button></td>';
+  document.getElementById('partidas-body').appendChild(tr);
+}
+function delRow(b){
+  const rows=document.querySelectorAll('#partidas-body tr');
+  if(rows.length>1){b.closest('tr').remove();totales();}
+}
+function calc(el){
+  const tr=el.closest('tr');
+  const qty=parseFloat(tr.querySelectorAll('input[type=number]')[0].value)||0;
+  const pu=parseFloat(tr.querySelectorAll('input[type=number]')[1].value)||0;
+  tr.querySelector('.imp-val').textContent=fmt(qty*pu);
+  totales();
+}
+function totales(){
+  let sub=0;
+  document.querySelectorAll('#partidas-body tr[data-tipo="item"]').forEach(tr=>{
+    const ins=tr.querySelectorAll('input[type=number]');
+    sub+=(parseFloat(ins[0].value)||0)*(parseFloat(ins[1].value)||0);
+  });
+  const iva=sub*.16,total=sub+iva;
+  document.getElementById('subtotal').textContent=fmt(sub);
+  document.getElementById('iva-t').textContent=fmt(iva);
+  document.getElementById('gran-total').innerHTML='<b>'+fmt(total)+'</b>';
+  document.getElementById('letras').textContent=total>0?numLetras(total):'';
+}
+function fmt(n){return'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function numLetras(n){
+  const u=['','UN','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISEIS','DIECISIETE','DIECIOCHO','DIECINUEVE'];
+  const d=['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA'];
+  const c=['','CIEN','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS'];
+  function s(x){if(!x)return'';if(x===100)return'CIEN';if(x<20)return u[x];if(x<100)return d[Math.floor(x/10)]+(x%10?' Y '+u[x%10]:'');return c[Math.floor(x/100)]+(x%100?' '+s(x%100):'');}
+  const cents=Math.round((n%1)*100),pesos=Math.floor(n);
+  const miles=Math.floor(pesos/1000),resto=pesos%1000;
+  let r=(miles?((miles===1?'MIL':s(miles)+' MIL')+(resto?' ':'')):'')+s(resto);
+  return r.trim()+' PESOS '+String(cents).padStart(2,'0')+'/100 M.N.';
+}
+
+const TERMINOS=[
+  '1.- Se requiere confirmacion formal por el cliente.',
+  '2.- Emitir una Orden de Compra para cantidades inferiores a las cotizadas puede resultar en precios unitarios mas altos.',
+  '3.- Al emitir la Orden de Compra, el cliente acepta los terminos y condiciones planteadas en esta cotizacion.',
+  '4.- Cualquier modificacion al alcance tendra que ser re-evaluado y re-cotizado.',
+  '5.- Se requiere un anticipo del 50% por el monto total de la orden de compra para cubrir gastos de materiales y consumibles.',
+  '6.- Tiempo de entrega despues de la orden de compra 35 dias habiles.',
+  '7.- Esta cotizacion tiene una vigencia de 15 dias naturales.',
+  '8.- Los precios anteriores estan sujetos a cambio sin previo aviso.',
+  '9.- CAMI se reserva el derecho de suspender la produccion si no se recibe el pago de los productos entregados conforme a los terminos y plazos acordados.',
+  '10.- Las solicitudes de pruebas especiales fuera de los controles de calidad estandar pueden generar costos adicionales.',
+  '11.- Cualquier cotizacion anterior a la presente perdio validez.',
+  '12.- Cualquier incumplimiento en el pago de las facturas podra derivar en la suspension temporal del proyecto hasta que se regularice la situacion.',
+  '13.- En caso de requerirse algun reporte, prueba o informacion especifica relacionada con calidad, debera ser solicitado expresamente y podra implicar un costo adicional.',
+  '14.- Presupuesto realizado con datos proporcionados por el cliente, se aclara que los datos son parametricos y se requiere el detalle de cada elemento para un costo mas exacto.'
+];
+const TERMINOS2=[
+  '1.- No nos hacemos responsables por retrasos causados por eventos fuera de nuestro control.',
+  '2.- Si el cliente no reporta defectos dentro de 5 dias habiles posteriores a la entrega, se considera que el material fue aceptado.',
+  '3.- En caso de discrepancia entre la Orden de Compra y esta cotizacion, se debera llegar a un acuerdo mutuo.',
+  '4.- CAMI no sera responsable por danos indirectos o perdida de ganancias derivados del uso del producto.'
+];
+
+function showToast(msg,tipo){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+tipo;setTimeout(()=>t.classList.remove('show'),5000);}
+
+async function generarPDF(){
+  const cliente=document.getElementById('cliente').value.trim();
+  const obra=document.getElementById('obra').value.trim();
+  const duracion=document.getElementById('duracion').value.trim();
+  const fechaRaw=document.getElementById('fecha').value;
+  const lugar=document.getElementById('lugar').value.trim();
+  const titulo=document.getElementById('titulo').value.trim();
+  const obs=document.getElementById('obs').value.trim();
+  if(!cliente||!obra||!duracion||!fechaRaw||!titulo){showToast('Completa los campos obligatorios.','err');return;}
+  const items=[];
+  document.querySelectorAll('#partidas-body tr').forEach(tr=>{
+    if(tr.dataset.tipo==='grupo'){items.push({tipo:'grupo',texto:tr.querySelector('input').value.trim()});}
+    else if(tr.dataset.tipo==='item'){
+      const ins=tr.querySelectorAll('input[type=number]');
+      const qty=parseFloat(ins[0].value)||0,pu=parseFloat(ins[1].value)||0;
+      items.push({tipo:'item',cod:tr.querySelector('input[type=text]').value.trim(),conc:tr.querySelector('textarea').value.trim(),und:tr.querySelectorAll('input[type=text]')[1]?.value.trim()||'',qty,pu,imp:qty*pu});
+    }
+  });
+  if(!items.some(i=>i.tipo==='item')){showToast('Agrega al menos un concepto.','err');return;}
+  const btn=document.getElementById('btn-pdf');
+  btn.disabled=true;btn.textContent='Generando...';
+  const fechaFmt=new Date(fechaRaw+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const sub=parseFloat(document.getElementById('subtotal').textContent.replace(/[^0-9.]/g,''))||0;
+  const iva=sub*.16,total=sub+iva;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
+  const W=215.9,pL=14,pR=14,cW=W-pL-pR;
+  let y=12;
+  // Header
+  doc.setFillColor(26,26,24);doc.rect(pL,y,36,20,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('CAMI',pL+18,y+8,{align:'center'});
+  doc.setFontSize(5.5);doc.setFont('helvetica','normal');
+  doc.text('COMERCIALIZADORA DE ACEROS',pL+18,y+12,{align:'center'});
+  doc.text('MANUFACTURADOS PARA LA INDUSTRIA',pL+18,y+16,{align:'center'});
+  doc.setTextColor(0);doc.setFontSize(10);doc.setFont('helvetica','bold');
+  doc.text('PRESUPUESTO',pL+36+(cW-36)/2,y+8,{align:'center'});
+  doc.setFontSize(8);doc.setFont('helvetica','normal');
+  doc.text('Pagina 1',W-pR-2,y+4,{align:'right'});
+  doc.setDrawColor(0);doc.setLineWidth(0.4);doc.rect(pL,y,cW,20);
+  y+=20;
+  // Client box
+  doc.rect(pL,y,cW,20);
+  doc.setFontSize(8.5);
+  [['Cliente:',cliente],['Obra:',obra],['Lugar:',lugar||'—']].forEach(([l,v],i)=>{
+    doc.setFont('helvetica','normal');doc.text(l,pL+2,y+5+i*6);
+    doc.setFont('helvetica','bold');doc.text(v,pL+20,y+5+i*6);
+  });
+  doc.setFont('helvetica','normal');doc.text('Duracion:',pL+cW-60,y+5);
+  doc.setFont('helvetica','bold');doc.text(duracion,pL+cW-30,y+5);
+  doc.setFont('helvetica','normal');doc.text('Fecha:',pL+cW-60,y+11);
+  doc.setFont('helvetica','bold');doc.text(fechaFmt,pL+cW-30,y+11);
+  y+=20;
+  // Title
+  doc.setFillColor(240,240,238);doc.rect(pL,y,cW,7,'F');doc.rect(pL,y,cW,7);
+  doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(0);
+  doc.text(titulo.toUpperCase(),pL+cW/2,y+5,{align:'center'});
+  y+=7;
+  // Table header
+  const cx={cod:pL,conc:pL+18,und:pL+98,qty:pL+116,pu:pL+134,imp:pL+157};
+  const cws={cod:18,conc:80,und:18,qty:18,pu:23,imp:W-pR-pL-157};
+  doc.setFillColor(26,26,24);doc.setTextColor(255,255,255);
+  doc.rect(pL,y,cW,6,'F');
+  doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+  [['Codigo',cx.cod,cws.cod],['Concepto',cx.conc,cws.conc],['Unidad',cx.und,cws.und],['Cantidad',cx.qty,cws.qty],['P. Unitario',cx.pu,cws.pu],['Importe',cx.imp,cws.imp]].forEach(([h,x,w])=>{
+    doc.text(h,x+w/2,y+4.5,{align:'center'});
+  });
+  doc.setTextColor(0);y+=6;
+  const startY=y;
+  items.forEach(item=>{
+    if(y>245){doc.addPage();y=12;}
+    if(item.tipo==='grupo'){
+      doc.setFillColor(50,50,50);doc.setTextColor(255,255,255);
+      doc.rect(pL,y,cW,5.5,'F');
+      doc.setFontSize(8);doc.setFont('helvetica','bold');
+      doc.text(item.texto,pL+2,y+4);
+      doc.setTextColor(0);y+=5.5;
+    } else {
+      const lines=doc.splitTextToSize(item.conc,cws.conc-3);
+      const rh=Math.max(6,lines.length*4.2+2);
+      if(y+rh>250){doc.addPage();y=12;}
+      doc.setDrawColor(220);doc.setLineWidth(0.2);doc.line(pL,y,pL+cW,y);
+      doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(0);
+      doc.text(item.cod,cx.cod+1,y+4.5);
+      lines.forEach((l,i)=>doc.text(l,cx.conc+2,y+4+i*4.2));
+      doc.text(item.und,cx.und+cws.und/2,y+4.5,{align:'center'});
+      doc.text(String(item.qty),cx.qty+cws.qty-2,y+4.5,{align:'right'});
+      doc.text('$'+item.pu.toLocaleString('es-MX',{minimumFractionDigits:2}),cx.pu+cws.pu-2,y+4.5,{align:'right'});
+      doc.setFont('helvetica','bold');
+      doc.text('$'+item.imp.toLocaleString('es-MX',{minimumFractionDigits:2}),cx.imp+cws.imp-2,y+4.5,{align:'right'});
+      doc.setFont('helvetica','normal');
+      y+=rh;
+    }
+  });
+  // Vertical lines
+  doc.setDrawColor(180);doc.setLineWidth(0.2);
+  [pL,cx.conc,cx.und,cx.qty,cx.pu,cx.imp,pL+cW].forEach(x=>doc.line(x,startY,x,y));
+  doc.setDrawColor(0);doc.setLineWidth(0.4);doc.line(pL,y,pL+cW,y);
+  y+=4;
+  // Totals
+  [['SUB TOTAL',sub],['IVA (16%)',iva]].forEach(([l,v])=>{
+    doc.setFont('helvetica','normal');doc.setFontSize(8);
+    doc.text(l,pL+cW-45,y+4);
+    doc.text('$'+v.toLocaleString('es-MX',{minimumFractionDigits:2}),pL+cW-2,y+4,{align:'right'});
+    y+=6;
+  });
+  doc.setFont('helvetica','bold');doc.setFontSize(10);
+  doc.text('TOTAL',pL+cW-45,y+5);
+  doc.text('$'+total.toLocaleString('es-MX',{minimumFractionDigits:2}),pL+cW-2,y+5,{align:'right'});
+  y+=8;
+  // Letras
+  doc.setFont('helvetica','bold');doc.setFontSize(8);
+  const letrasLines=doc.splitTextToSize('('+numLetras(total)+')',cW-4);
+  letrasLines.forEach(l=>{doc.text(l,pL+2,y+4);y+=5;});
+  // Observaciones
+  if(obs){y+=3;doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text('OBSERVACIONES:',pL,y+4);y+=6;
+    doc.setFont('helvetica','normal');doc.setFontSize(8);
+    doc.splitTextToSize(obs,cW-4).forEach(l=>{doc.text(l,pL+2,y+4);y+=5;});}
+  // Terminos
+  if(y>205){doc.addPage();y=12;}
+  y+=5;doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('TERMINOS Y CONDICIONES',pL,y+4);y+=7;
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+  TERMINOS.forEach(t=>{if(y>255){doc.addPage();y=12;}
+    doc.splitTextToSize(t,cW-2).forEach(l=>{doc.text(l,pL+1,y+3);y+=4;});y+=1;});
+  y+=3;if(y>240){doc.addPage();y=12;}
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('TERMINOS PROPUESTOS ACEPTADOS',pL,y+4);y+=7;
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+  TERMINOS2.forEach(t=>{if(y>255){doc.addPage();y=12;}
+    doc.splitTextToSize(t,cW-2).forEach(l=>{doc.text(l,pL+1,y+3);y+=4;});y+=1;});
+  const folio='COT-'+Date.now().toString().slice(-6);
+  doc.save('Presupuesto_'+cliente.replace(/\s+/g,'_')+'_'+folio+'.pdf');
+  btn.disabled=false;btn.textContent='Generar PDF';
+  showToast('PDF generado correctamente.','ok');
+}
+addGrupo();addItem();
+</script>
+</body>
+</html>
