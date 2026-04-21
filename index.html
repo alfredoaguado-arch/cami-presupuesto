@@ -220,164 +220,134 @@ async function generarPDF(){
   document.querySelectorAll('#partidas-body tr').forEach(tr=>{
     if(tr.dataset.tipo==='grupo'){items.push({tipo:'grupo',texto:tr.querySelector('input').value.trim()});}
     else if(tr.dataset.tipo==='item'){
-      const ins=tr.querySelectorAll('input[type=number]');
-      const qty=parseFloat(ins[0].value)||0,pu=parseFloat(ins[1].value)||0;
-      items.push({tipo:'item',cod:tr.querySelector('input[type=text]').value.trim(),conc:tr.querySelector('textarea').value.trim(),und:tr.querySelectorAll('input[type=text]')[1]?.value.trim()||'',qty,pu,imp:qty*pu});
+      const ins=tr.querySelectorAll('input[type=text]');
+      const nums=tr.querySelectorAll('input[type=number]');
+      const qty=parseFloat(nums[0].value)||0,pu=parseFloat(nums[1].value)||0;
+      items.push({tipo:'item',cod:ins[0].value.trim(),conc:tr.querySelector('textarea').value.trim(),und:ins[1]?.value.trim()||'',qty,pu,imp:qty*pu});
     }
   });
   if(!items.some(i=>i.tipo==='item')){showToast('Agrega al menos un concepto.','err');return;}
   const btn=document.getElementById('btn-pdf');
   btn.disabled=true;btn.textContent='Generando...';
-  try {
   const fechaFmt=new Date(fechaRaw+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const sub=parseFloat(document.getElementById('subtotal').textContent.replace(/[^0-9.]/g,''))||0;
   const iva=sub*.16,total=sub+iva;
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
-  const W=215.9,pL=14,pR=14,cW=W-pL-pR;
-  let y=12;
-  // Cargar logo real de CAMI desde GitHub
-  const logoUrl = 'https://raw.githubusercontent.com/alfredoaguado-arch/cami-presupuesto/main/logo.png';
-  let logoB64 = '';
-  try {
-    const logoRes = await Promise.race([
-      fetch(logoUrl),
-      new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000))
-    ]);
-    const blob = await logoRes.blob();
-    logoB64 = await new Promise(res => {
-      const reader = new FileReader();
-      reader.onloadend = () => res(reader.result);
-      reader.onerror = () => res('');
-      reader.readAsDataURL(blob);
-    });
-  } catch(e) { console.warn('Logo no disponible:', e.message); }
-
-  // Header con logo real
-  doc.setDrawColor(0);doc.setLineWidth(0.5);doc.rect(pL,y,cW,30);
-  doc.setFillColor(26,26,24);doc.rect(pL,y,50,30,'F');
-  if (logoB64) doc.addImage(logoB64,'PNG',pL+2,y+2,46,26);
-  doc.setDrawColor(180);doc.setLineWidth(0.3);doc.line(pL+50,y,pL+50,y+30);
-  doc.setTextColor(0);doc.setFontSize(11);doc.setFont('helvetica','bold');
-  doc.text('COMERCIALIZADORA DE ACEROS',pL+50+(cW-50)/2,y+10,{align:'center'});
-  doc.text('MANUFACTURADOS PARA LA INDUSTRIA',pL+50+(cW-50)/2,y+16,{align:'center'});
-  doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
-  doc.text('Monterrey, Nuevo Leon  |  contacto@aceroscami.com',pL+50+(cW-50)/2,y+22,{align:'center'});
-  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(0);
-  doc.text('Folio: '+folio,W-pR-2,y+9,{align:'right'});
-  doc.setFont('helvetica','normal');doc.setTextColor(120);doc.text('Pagina 1',W-pR-2,y+15,{align:'right'});
-  doc.setTextColor(0);y+=30;
-
-  // Datos cliente
-  doc.setLineWidth(0.4);doc.setDrawColor(0);doc.rect(pL,y,cW,22);
-  doc.setDrawColor(180);doc.setLineWidth(0.2);doc.line(pL+cW-60,y,pL+cW-60,y+22);
-  doc.setFontSize(8.5);
-  [['Cliente:',cliente],['Obra:',obra],['Lugar:',lugar||'-']].forEach(([lbl,val],i)=>{
-    doc.setFont('helvetica','normal');doc.setTextColor(120);doc.text(lbl,pL+2,y+5+i*6);
-    doc.setFont('helvetica','bold');doc.setTextColor(0);
-    doc.text(doc.splitTextToSize(val,cW-65)[0],pL+22,y+5+i*6);
-  });
-  doc.setFont('helvetica','normal');doc.setTextColor(120);
-  doc.text('Duracion:',pL+cW-58,y+5);doc.text('Fecha:',pL+cW-58,y+13);
-  doc.setFont('helvetica','bold');doc.setTextColor(0);
-  doc.text(duracion,pL+cW-58,y+10);doc.text(fechaFmt,pL+cW-58,y+18);y+=22;
-
-  // Titulo presupuesto
-  doc.setFillColor(230,230,230);doc.rect(pL,y,cW,8,'F');doc.rect(pL,y,cW,8);
-  doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(0);
-  doc.text(titulo.toUpperCase(),pL+cW/2,y+5.5,{align:'center'});y+=8;
-  // Client box
-  doc.rect(pL,y,cW,20);
-  doc.setFontSize(8.5);
-  [['Cliente:',cliente],['Obra:',obra],['Lugar:',lugar||'—']].forEach(([l,v],i)=>{
-    doc.setFont('helvetica','normal');doc.text(l,pL+2,y+5+i*6);
-    doc.setFont('helvetica','bold');doc.text(v,pL+20,y+5+i*6);
-  });
-  doc.setFont('helvetica','normal');doc.text('Duracion:',pL+cW-60,y+5);
-  doc.setFont('helvetica','bold');doc.text(duracion,pL+cW-30,y+5);
-  doc.setFont('helvetica','normal');doc.text('Fecha:',pL+cW-60,y+11);
-  doc.setFont('helvetica','bold');doc.text(fechaFmt,pL+cW-30,y+11);
-  y+=20;
-  // Title
-  doc.setFillColor(240,240,238);doc.rect(pL,y,cW,7,'F');doc.rect(pL,y,cW,7);
-  doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(0);
-  doc.text(titulo.toUpperCase(),pL+cW/2,y+5,{align:'center'});
-  y+=7;
-  // Table header
-  const cx={cod:pL,conc:pL+18,und:pL+98,qty:pL+116,pu:pL+134,imp:pL+157};
-  const cws={cod:18,conc:80,und:18,qty:18,pu:23,imp:W-pR-pL-157};
-  doc.setFillColor(26,26,24);doc.setTextColor(255,255,255);
-  doc.rect(pL,y,cW,6,'F');
-  doc.setFontSize(7.5);doc.setFont('helvetica','bold');
-  [['Codigo',cx.cod,cws.cod],['Concepto',cx.conc,cws.conc],['Unidad',cx.und,cws.und],['Cantidad',cx.qty,cws.qty],['P. Unitario',cx.pu,cws.pu],['Importe',cx.imp,cws.imp]].forEach(([h,x,w])=>{
-    doc.text(h,x+w/2,y+4.5,{align:'center'});
-  });
-  doc.setTextColor(0);y+=6;
-  const startY=y;
-  items.forEach(item=>{
-    if(y>245){doc.addPage();y=12;}
-    if(item.tipo==='grupo'){
-      doc.setFillColor(50,50,50);doc.setTextColor(255,255,255);
-      doc.rect(pL,y,cW,5.5,'F');
-      doc.setFontSize(8);doc.setFont('helvetica','bold');
-      doc.text(item.texto,pL+2,y+4);
-      doc.setTextColor(0);y+=5.5;
-    } else {
-      const lines=doc.splitTextToSize(item.conc,cws.conc-3);
-      const rh=Math.max(6,lines.length*4.2+2);
-      if(y+rh>250){doc.addPage();y=12;}
-      doc.setDrawColor(220);doc.setLineWidth(0.2);doc.line(pL,y,pL+cW,y);
-      doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(0);
-      doc.text(item.cod,cx.cod+1,y+4.5);
-      lines.forEach((l,i)=>doc.text(l,cx.conc+2,y+4+i*4.2));
-      doc.text(item.und,cx.und+cws.und/2,y+4.5,{align:'center'});
-      doc.text(String(item.qty),cx.qty+cws.qty-2,y+4.5,{align:'right'});
-      doc.text('$'+item.pu.toLocaleString('es-MX',{minimumFractionDigits:2}),cx.pu+cws.pu-2,y+4.5,{align:'right'});
-      doc.setFont('helvetica','bold');
-      doc.text('$'+item.imp.toLocaleString('es-MX',{minimumFractionDigits:2}),cx.imp+cws.imp-2,y+4.5,{align:'right'});
-      doc.setFont('helvetica','normal');
-      y+=rh;
-    }
-  });
-  // Vertical lines
-  doc.setDrawColor(180);doc.setLineWidth(0.2);
-  [pL,cx.conc,cx.und,cx.qty,cx.pu,cx.imp,pL+cW].forEach(x=>doc.line(x,startY,x,y));
-  doc.setDrawColor(0);doc.setLineWidth(0.4);doc.line(pL,y,pL+cW,y);
-  y+=4;
-  // Totals
-  [['SUB TOTAL',sub],['IVA (16%)',iva]].forEach(([l,v])=>{
-    doc.setFont('helvetica','normal');doc.setFontSize(8);
-    doc.text(l,pL+cW-45,y+4);
-    doc.text('$'+v.toLocaleString('es-MX',{minimumFractionDigits:2}),pL+cW-2,y+4,{align:'right'});
-    y+=6;
-  });
-  doc.setFont('helvetica','bold');doc.setFontSize(10);
-  doc.text('TOTAL',pL+cW-45,y+5);
-  doc.text('$'+total.toLocaleString('es-MX',{minimumFractionDigits:2}),pL+cW-2,y+5,{align:'right'});
-  y+=8;
-  // Letras
-  doc.setFont('helvetica','bold');doc.setFontSize(8);
-  const letrasLines=doc.splitTextToSize('('+numLetras(total)+')',cW-4);
-  letrasLines.forEach(l=>{doc.text(l,pL+2,y+4);y+=5;});
-  // Observaciones
-  if(obs){y+=3;doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text('OBSERVACIONES:',pL,y+4);y+=6;
-    doc.setFont('helvetica','normal');doc.setFontSize(8);
-    doc.splitTextToSize(obs,cW-4).forEach(l=>{doc.text(l,pL+2,y+4);y+=5;});}
-  // Terminos
-  if(y>205){doc.addPage();y=12;}
-  y+=5;doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('TERMINOS Y CONDICIONES',pL,y+4);y+=7;
-  doc.setFont('helvetica','normal');doc.setFontSize(7.5);
-  TERMINOS.forEach(t=>{if(y>255){doc.addPage();y=12;}
-    doc.splitTextToSize(t,cW-2).forEach(l=>{doc.text(l,pL+1,y+3);y+=4;});y+=1;});
-  y+=3;if(y>240){doc.addPage();y=12;}
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('TERMINOS PROPUESTOS ACEPTADOS',pL,y+4);y+=7;
-  doc.setFont('helvetica','normal');doc.setFontSize(7.5);
-  TERMINOS2.forEach(t=>{if(y>255){doc.addPage();y=12;}
-    doc.splitTextToSize(t,cW-2).forEach(l=>{doc.text(l,pL+1,y+3);y+=4;});y+=1;});
   const folio='COT-'+Date.now().toString().slice(-6);
-  doc.save('Presupuesto_'+cliente.replace(/\s+/g,'_')+'_'+folio+'.pdf');
-  btn.disabled=false;btn.textContent='Generar PDF';
-  showToast('PDF generado correctamente.','ok');
+  try {
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
+    const W=215.9,pL=12,pR=12,cW=W-pL-pR;
+    let y=10;
+    // Cargar logo real desde GitHub
+    let logoB64='';
+    try {
+      const r=await Promise.race([fetch('https://raw.githubusercontent.com/alfredoaguado-arch/cami-presupuesto/main/logo.png'),new Promise((_,rj)=>setTimeout(()=>rj(new Error('timeout')),6000))]);
+      const blob=await r.blob();
+      logoB64=await new Promise(res=>{const rd=new FileReader();rd.onloadend=()=>res(rd.result);rd.onerror=()=>res('');rd.readAsDataURL(blob);});
+    } catch(e){console.warn('Logo no cargado:',e.message);}
+    // Header
+    doc.setDrawColor(0);doc.setLineWidth(0.5);doc.rect(pL,y,cW,30);
+    doc.setFillColor(26,26,24);doc.rect(pL,y,50,30,'F');
+    if(logoB64) doc.addImage(logoB64,'PNG',pL+2,y+2,46,26);
+    doc.setDrawColor(180);doc.setLineWidth(0.3);doc.line(pL+50,y,pL+50,y+30);
+    doc.setTextColor(0);doc.setFontSize(11);doc.setFont('helvetica','bold');
+    doc.text('COMERCIALIZADORA DE ACEROS',pL+50+(cW-50)/2,y+10,{align:'center'});
+    doc.text('MANUFACTURADOS PARA LA INDUSTRIA',pL+50+(cW-50)/2,y+16,{align:'center'});
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(120,120,120);
+    doc.text('Monterrey, Nuevo Leon  |  contacto@aceroscami.com',pL+50+(cW-50)/2,y+22,{align:'center'});
+    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(0);
+    doc.text('Folio: '+folio,W-pR-2,y+9,{align:'right'});
+    doc.setFont('helvetica','normal');doc.setTextColor(120);doc.text('Pagina 1',W-pR-2,y+15,{align:'right'});
+    doc.setTextColor(0);y+=30;
+    // Datos cliente
+    doc.setLineWidth(0.4);doc.setDrawColor(0);doc.rect(pL,y,cW,22);
+    doc.setDrawColor(180);doc.setLineWidth(0.2);doc.line(pL+cW-60,y,pL+cW-60,y+22);
+    doc.setFontSize(8.5);
+    [['Cliente:',cliente],['Obra:',obra],['Lugar:',lugar||'-']].forEach(([lbl,val],i)=>{
+      doc.setFont('helvetica','normal');doc.setTextColor(120);doc.text(lbl,pL+2,y+5+i*6);
+      doc.setFont('helvetica','bold');doc.setTextColor(0);
+      doc.text(doc.splitTextToSize(val,cW-65)[0],pL+22,y+5+i*6);
+    });
+    doc.setFont('helvetica','normal');doc.setTextColor(120);
+    doc.text('Duracion:',pL+cW-58,y+5);doc.text('Fecha:',pL+cW-58,y+13);
+    doc.setFont('helvetica','bold');doc.setTextColor(0);
+    doc.text(duracion,pL+cW-58,y+10);doc.text(fechaFmt,pL+cW-58,y+18);y+=22;
+    // Titulo
+    doc.setFillColor(230,230,230);doc.rect(pL,y,cW,8,'F');doc.rect(pL,y,cW,8);
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(0);
+    doc.text(titulo.toUpperCase(),pL+cW/2,y+5.5,{align:'center'});y+=8;
+    // Tabla header
+    const cx={cod:pL,conc:pL+20,und:pL+102,qty:pL+120,pu:pL+138,imp:pL+163};
+    const cws={cod:20,conc:82,und:18,qty:18,pu:25,imp:W-pR-pL-163};
+    doc.setFillColor(26,26,24);doc.setTextColor(255,255,255);doc.rect(pL,y,cW,7,'F');
+    doc.setFontSize(8);doc.setFont('helvetica','bold');
+    [['Codigo',cx.cod,cws.cod],['Concepto',cx.conc,cws.conc],['Unidad',cx.und,cws.und],['Cantidad',cx.qty,cws.qty],['P. Unitario',cx.pu,cws.pu],['Importe',cx.imp,cws.imp]].forEach(([h,x,w])=>doc.text(h,x+w/2,y+5,{align:'center'}));
+    doc.setTextColor(0);y+=7;
+    const startY=y;doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+    items.forEach(item=>{
+      if(y>245){doc.addPage();y=10;}
+      if(item.tipo==='grupo'){
+        doc.setFillColor(50,50,50);doc.setTextColor(255,255,255);
+        doc.rect(pL,y,cW,6,'F');doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+        doc.text(item.texto,pL+3,y+4.5);doc.setTextColor(0);doc.setFont('helvetica','normal');y+=6;
+      } else {
+        const lines=doc.splitTextToSize(item.conc,cws.conc-3);
+        const rh=Math.max(7,lines.length*4.5+3);
+        if(y+rh>250){doc.addPage();y=10;}
+        doc.setDrawColor(210);doc.setLineWidth(0.2);doc.line(pL,y,pL+cW,y);
+        doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(0);
+        doc.text(item.cod,cx.cod+1,y+5);
+        lines.forEach((l,i)=>doc.text(l,cx.conc+2,y+5+i*4.5));
+        doc.text(item.und,cx.und+cws.und/2,y+5,{align:'center'});
+        doc.text(item.qty?String(item.qty):'',cx.qty+cws.qty-2,y+5,{align:'right'});
+        doc.text(item.pu?'$'+item.pu.toLocaleString('es-MX',{minimumFractionDigits:2}):'',cx.pu+cws.pu-2,y+5,{align:'right'});
+        doc.setFont('helvetica','bold');
+        doc.text(item.imp?'$'+item.imp.toLocaleString('es-MX',{minimumFractionDigits:2}):'',cx.imp+cws.imp-2,y+5,{align:'right'});
+        doc.setFont('helvetica','normal');y+=rh;
+      }
+    });
+    doc.setDrawColor(150);doc.setLineWidth(0.2);
+    [pL,cx.conc,cx.und,cx.qty,cx.pu,cx.imp,pL+cW].forEach(x=>doc.line(x,startY,x,y));
+    doc.setDrawColor(0);doc.setLineWidth(0.4);doc.line(pL,y,pL+cW,y);y+=3;
+    [['SUB TOTAL',sub,false],['IVA (16%)',iva,false],['TOTAL',total,true]].forEach(([lbl,val,bold])=>{
+      if(bold){doc.setLineWidth(0.5);doc.line(pL+cW-82,y,pL+cW,y);doc.setFont('helvetica','bold');doc.setFontSize(10);}
+      else{doc.setFont('helvetica','normal');doc.setFontSize(8.5);}
+      doc.setTextColor(0);doc.text(lbl,pL+cW-80,y+4);
+      doc.text('$'+val.toLocaleString('es-MX',{minimumFractionDigits:2}),pL+cW-2,y+4,{align:'right'});
+      y+=bold?8:6;
+    });
+    y+=2;doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(0);
+    doc.splitTextToSize('('+numLetras(total)+')',cW-4).forEach(l=>{doc.text(l,pL+2,y+4);y+=5;});
+    if(obs){y+=3;if(y>240){doc.addPage();y=10;}
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('OBSERVACIONES:',pL,y+4);y+=7;
+      doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+      doc.splitTextToSize(obs,cW-2).forEach(l=>{if(y>250){doc.addPage();y=10;}doc.text(l,pL+2,y+4);y+=5;});
+    }
+    if(y>210){doc.addPage();y=10;}y+=5;
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('TERMINOS Y CONDICIONES',pL,y+4);y+=7;
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+    TERMINOS.forEach(t=>{if(y>255){doc.addPage();y=10;}
+      doc.splitTextToSize(t,cW-2).forEach(l=>{doc.text(l,pL+1,y+3);y+=4;});y+=1;});
+    y+=3;if(y>240){doc.addPage();y=10;}
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('TERMINOS PROPUESTOS ACEPTADOS',pL,y+4);y+=7;
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+    TERMINOS2.forEach(t=>{if(y>255){doc.addPage();y=10;}
+      doc.splitTextToSize(t,cW-2).forEach(l=>{doc.text(l,pL+1,y+3);y+=4;});y+=1;});
+    if(y<232){y=Math.max(y+10,232);
+      doc.setLineWidth(0.3);doc.setDrawColor(0);
+      doc.line(pL+10,y,pL+75,y);doc.line(pL+cW-75,y,pL+cW-10,y);
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100);
+      doc.text('Autorizado por CAMI',pL+42,y+5,{align:'center'});
+      doc.text('Aceptado por el Cliente',pL+cW-42,y+5,{align:'center'});
+    }
+    doc.save('Presupuesto_'+cliente.replace(/\s+/g,'_')+'_'+folio+'.pdf');
+    showToast('PDF generado: Presupuesto_'+cliente+'_'+folio+'.pdf','ok');
+  } catch(err){
+    console.error('Error PDF:',err);
+    showToast('Error al generar PDF: '+err.message,'err');
+  } finally {
+    btn.disabled=false;btn.textContent='Generar PDF';
+  }
 }
 addGrupo();addItem();
 </script>
