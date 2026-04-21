@@ -228,6 +228,7 @@ async function generarPDF(){
   if(!items.some(i=>i.tipo==='item')){showToast('Agrega al menos un concepto.','err');return;}
   const btn=document.getElementById('btn-pdf');
   btn.disabled=true;btn.textContent='Generando...';
+  try {
   const fechaFmt=new Date(fechaRaw+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const sub=parseFloat(document.getElementById('subtotal').textContent.replace(/[^0-9.]/g,''))||0;
   const iva=sub*.16,total=sub+iva;
@@ -239,14 +240,18 @@ async function generarPDF(){
   const logoUrl = 'https://raw.githubusercontent.com/alfredoaguado-arch/cami-presupuesto/main/logo.png';
   let logoB64 = '';
   try {
-    const logoRes = await fetch(logoUrl);
+    const logoRes = await Promise.race([
+      fetch(logoUrl),
+      new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000))
+    ]);
     const blob = await logoRes.blob();
     logoB64 = await new Promise(res => {
       const reader = new FileReader();
       reader.onloadend = () => res(reader.result);
+      reader.onerror = () => res('');
       reader.readAsDataURL(blob);
     });
-  } catch(e) { console.warn('Logo no disponible:', e); }
+  } catch(e) { console.warn('Logo no disponible:', e.message); }
 
   // Header con logo real
   doc.setDrawColor(0);doc.setLineWidth(0.5);doc.rect(pL,y,cW,30);
