@@ -245,34 +245,31 @@ async function generarPDF(){
       const blob=await r.blob();
       logoB64=await new Promise(res=>{const rd=new FileReader();rd.onloadend=()=>res(rd.result);rd.onerror=()=>res('');rd.readAsDataURL(blob);});
     } catch(e){console.warn('Logo no cargado:',e.message);}
-    // Header rediseñado - logo sobre fondo blanco con ratio correcto
-    const headerH = 32;
-    const logoW = 42; // ancho logo manteniendo ratio 4:3 aprox
-    const logoH = 28; // alto logo
-    const logoX = pL + 2;
-    const logoY = y + (headerH - logoH) / 2;
-    // Borde exterior del header
-    doc.setDrawColor(0);doc.setLineWidth(0.5);doc.rect(pL,y,cW,headerH);
-    // Seccion logo - fondo blanco
-    doc.setFillColor(255,255,255);doc.rect(pL,y,logoW+4,headerH,'F');
-    // Logo a tamaño correcto
-    if(logoB64) doc.addImage(logoB64,'PNG',logoX,logoY,logoW,logoH,'','FAST');
-    // Linea divisora vertical
-    doc.setDrawColor(200,200,200);doc.setLineWidth(0.4);doc.line(pL+logoW+4,y,pL+logoW+4,y+headerH);
-    // Linea naranja accent debajo del header
-    doc.setFillColor(230,100,30);doc.rect(pL,y+headerH,cW,1.2,'F');
-    // Nombre empresa - lado derecho
-    const textX = pL+logoW+6;
-    const textW = cW - logoW - 6;
-    doc.setTextColor(26,26,24);doc.setFontSize(11);doc.setFont('helvetica','bold');
-    doc.text('COMERCIALIZADORA DE ACEROS',textX+textW/2,y+10,{align:'center'});
-    doc.text('MANUFACTURADOS PARA LA INDUSTRIA',textX+textW/2,y+17,{align:'center'});
-    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
-    doc.text('Estado de Mexico',textX+textW/2,y+24,{align:'center'});
-    // Folio (derecha)
+    // Header integrado - sin lineas internas, flujo natural
+    const headerH = 34;
+    const logoW = 40;
+    const logoH = 28;
+    // Barra naranja accent en la parte superior (identidad de marca)
+    doc.setFillColor(230,100,30);doc.rect(pL,y,cW,2.5,'F');
+    y+=2.5;
+    // Header sin borde inferior prominente, fondo blanco limpio
+    doc.setFillColor(255,255,255);doc.rect(pL,y,cW,headerH,'F');
+    // Logo sin caja - flotando sobre el fondo blanco
+    if(logoB64) doc.addImage(logoB64,'PNG',pL+2,y+3,logoW,logoH,'','FAST');
+    // Nombre empresa centrado en el area restante
+    const midX = pL + logoW + 6 + (cW - logoW - 6)/2;
+    doc.setTextColor(26,26,24);doc.setFontSize(12);doc.setFont('helvetica','bold');
+    doc.text('COMERCIALIZADORA DE ACEROS MANUFACTURADOS',midX,y+12,{align:'center'});
+    doc.text('PARA LA INDUSTRIA',midX,y+19,{align:'center'});
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(130,130,130);
+    doc.text('Estado de Mexico',midX,y+26,{align:'center'});
+    // Folio (esquina superior derecha)
     doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(26,26,24);
     doc.text('Folio: '+folio,W-pR-2,y+10,{align:'right'});
-    doc.setFont('helvetica','normal');doc.setTextColor(130,130,130);doc.text('Pagina 1',W-pR-2,y+16,{align:'right'});
+    doc.setFont('helvetica','normal');doc.setTextColor(150);
+    doc.text('Pagina 1',W-pR-2,y+17,{align:'right'});
+    // Linea inferior delgada gris (solo una, sin caja)
+    doc.setDrawColor(220);doc.setLineWidth(0.4);doc.line(pL,y+headerH,pL+cW,y+headerH);
     doc.setTextColor(0);y+=headerH+2;
     // Datos cliente
     doc.setLineWidth(0.3);doc.setDrawColor(0);doc.rect(pL,y,cW,22);
