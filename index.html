@@ -362,8 +362,27 @@ async function generarPDF(){
       doc.text('Autorizado por CAMI',pL+42,y+5,{align:'center'});
       doc.text('Aceptado por el Cliente',pL+cW-42,y+5,{align:'center'});
     }
+    // Guardar en Drive y descargar localmente
+    const pdfB64 = doc.output('datauristring').split(',')[1];
     doc.save('Presupuesto_'+cliente.replace(/\s+/g,'_')+'_'+folio+'.pdf');
-    showToast('PDF generado: Presupuesto_'+cliente+'_'+folio+'.pdf','ok');
+    showToast('PDF descargado. Guardando en Drive...','ok');
+    // Enviar al Apps Script en segundo plano
+    try {
+      const resp = await fetch('https://script.google.com/macros/s/AKfycbw8Ucc9J3_TQcsAR0tn2Lk5DBN2bPWG6HF2pm3GfoEwa2NlRFQn5qZPVj7gy-IaLBSg/exec', {
+        method:'POST',
+        body: JSON.stringify({
+          folio, cliente, obra, lugar, duracion,
+          fecha: fechaRaw, titulo,
+          subtotal: sub, iva, total,
+          pdf: pdfB64
+        })
+      });
+      const result = await resp.json();
+      if(result.ok) showToast('✓ PDF guardado en Drive: '+folio,'ok');
+      else showToast('PDF descargado. Error Drive: '+result.error,'err');
+    } catch(driveErr) {
+      showToast('PDF descargado (sin conexión a Drive)','ok');
+    }
   } catch(err){
     console.error('Error PDF:',err);
     showToast('Error al generar PDF: '+err.message,'err');
