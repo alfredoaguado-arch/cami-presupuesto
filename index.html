@@ -366,11 +366,11 @@ async function generarPDF(){
     const pdfB64 = doc.output('datauristring').split(',')[1];
     doc.save('Presupuesto_'+cliente.replace(/\s+/g,'_')+'_'+folio+'.pdf');
     showToast('PDF descargado. Guardando en Drive...','ok');
-    // Enviar al Apps Script con no-cors (evita bloqueo CORS)
+    // Enviar al Apps Script (Content-Type text/plain evita preflight CORS)
     try {
-      await fetch('https://script.google.com/macros/s/AKfycbw8Ucc9J3_TQcsAR0tn2Lk5DBN2bPWG6HF2pm3GfoEwa2NlRFQn5qZPVj7gy-IaLBSg/exec', {
+      const resp = await fetch('https://script.google.com/macros/s/AKfycbw8Ucc9J3_TQcsAR0tn2Lk5DBN2bPWG6HF2pm3GfoEwa2NlRFQn5qZPVj7gy-IaLBSg/exec', {
         method: 'POST',
-        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
           folio, cliente, obra, lugar, duracion,
           fecha: fechaRaw, titulo,
@@ -378,9 +378,12 @@ async function generarPDF(){
           pdf: pdfB64
         })
       });
-      showToast('✓ PDF descargado y guardado en Drive: '+folio,'ok');
+      const result = await resp.json();
+      if(result.ok) showToast('✓ PDF descargado y guardado en Drive: '+folio,'ok');
+      else showToast('PDF descargado. Error Drive: '+(result.error||''),'err');
     } catch(driveErr) {
-      showToast('✓ PDF descargado correctamente','ok');
+      showToast('PDF descargado. Error al guardar en Drive.','err');
+      console.error('Drive error:', driveErr);
     }
   } catch(err){
     console.error('Error PDF:',err);
