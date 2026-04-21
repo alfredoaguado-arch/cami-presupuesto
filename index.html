@@ -256,18 +256,26 @@ async function generarPDF(){
     doc.setFillColor(255,255,255);doc.rect(pL,y,cW,headerH,'F');
     // Logo sin caja - flotando sobre el fondo blanco
     if(logoB64) doc.addImage(logoB64,'PNG',pL+2,y+3,logoW,logoH,'','FAST');
-    // Nombre empresa centrado en el area restante
-    const midX = pL + logoW + 6 + (cW - logoW - 6)/2;
-    doc.setTextColor(26,26,24);doc.setFontSize(12);doc.setFont('helvetica','bold');
-    doc.text('COMERCIALIZADORA DE ACEROS MANUFACTURADOS',midX,y+12,{align:'center'});
-    doc.text('PARA LA INDUSTRIA',midX,y+19,{align:'center'});
+    // Layout: logo izq | empresa centro | folio der (sin solapamiento)
+    const folioW = 38; // espacio reservado para folio a la derecha
+    const textStart = pL + logoW + 6;
+    const textEnd = W - pR - folioW;
+    const midX = textStart + (textEnd - textStart)/2;
+    // Nombre empresa - limitado para no tocar la zona del folio
+    doc.setTextColor(26,26,24);doc.setFontSize(11);doc.setFont('helvetica','bold');
+    doc.text('COMERCIALIZADORA DE ACEROS',midX,y+11,{align:'center'});
+    doc.text('MANUFACTURADOS PARA LA INDUSTRIA',midX,y+18,{align:'center'});
     doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(130,130,130);
     doc.text('Estado de Mexico',midX,y+26,{align:'center'});
-    // Folio (esquina superior derecha)
-    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(26,26,24);
-    doc.text('Folio: '+folio,W-pR-2,y+10,{align:'right'});
-    doc.setFont('helvetica','normal');doc.setTextColor(150);
-    doc.text('Pagina 1',W-pR-2,y+17,{align:'right'});
+    // Folio y pagina - zona derecha reservada
+    doc.setDrawColor(220);doc.setLineWidth(0.2);
+    doc.line(W-pR-folioW+2,y+4,W-pR-folioW+2,y+headerH-4);
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(26,26,24);
+    doc.text('FOLIO',W-pR-folioW/2,y+11,{align:'center'});
+    doc.setFontSize(8.5);doc.setFont('helvetica','normal');doc.setTextColor(230,100,30);
+    doc.text(folio,W-pR-folioW/2,y+19,{align:'center'});
+    doc.setFontSize(7);doc.setTextColor(150);
+    doc.text('Pagina 1',W-pR-folioW/2,y+27,{align:'center'});
     // Linea inferior delgada gris (solo una, sin caja)
     doc.setDrawColor(220);doc.setLineWidth(0.4);doc.line(pL,y+headerH,pL+cW,y+headerH);
     doc.setTextColor(0);y+=headerH+2;
