@@ -235,15 +235,32 @@ async function generarPDF(){
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
   const W=215.9,pL=14,pR=14,cW=W-pL-pR;
   let y=12;
-  // Header
-  doc.setFillColor(26,26,24);doc.rect(pL,y,36,20,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
-  doc.text('CAMI',pL+18,y+8,{align:'center'});
-  doc.setFontSize(5.5);doc.setFont('helvetica','normal');
-  doc.text('COMERCIALIZADORA DE ACEROS',pL+18,y+12,{align:'center'});
-  doc.text('MANUFACTURADOS PARA LA INDUSTRIA',pL+18,y+16,{align:'center'});
+  // Header con logo generado por canvas
+  const logoCanvas = document.createElement('canvas');
+  logoCanvas.width = 300; logoCanvas.height = 157;
+  const lc = logoCanvas.getContext('2d');
+  // Fondo negro
+  lc.fillStyle = '#1A1A18';
+  lc.fillRect(0,0,300,157);
+  // Texto CAMI
+  lc.fillStyle = '#FFFFFF';
+  lc.font = 'bold 72px Courier New, monospace';
+  lc.textAlign = 'center';
+  lc.textBaseline = 'middle';
+  lc.fillText('CAMI', 150, 68);
+  // Subtitulo
+  lc.fillStyle = '#888780';
+  lc.font = '500 13px Courier New, monospace';
+  lc.fillText('COMERCIALIZADORA DE ACEROS', 150, 112);
+  lc.fillText('MANUFACTURADOS PARA LA INDUSTRIA', 150, 130);
+  // Marco
+  lc.strokeStyle = '#D3D1C7';
+  lc.lineWidth = 4;
+  lc.strokeRect(2,2,296,153);
+  const logoImg = logoCanvas.toDataURL('image/png');
+  doc.addImage(logoImg,'PNG',pL,y,38,20);
   doc.setTextColor(0);doc.setFontSize(10);doc.setFont('helvetica','bold');
-  doc.text('PRESUPUESTO',pL+36+(cW-36)/2,y+8,{align:'center'});
+  doc.text('PRESUPUESTO',pL+38+(cW-38)/2,y+8,{align:'center'});
   doc.setFontSize(8);doc.setFont('helvetica','normal');
   doc.text('Pagina 1',W-pR-2,y+4,{align:'right'});
   doc.setDrawColor(0);doc.setLineWidth(0.4);doc.rect(pL,y,cW,20);
