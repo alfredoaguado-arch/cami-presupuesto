@@ -172,14 +172,39 @@ function totales(){
 }
 function fmt(n){return'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function numLetras(n){
-  const u=['','UN','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISEIS','DIECISIETE','DIECIOCHO','DIECINUEVE'];
-  const d=['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA'];
+  const u=['','UN','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISEIS','DIECISIETE','DIECIOCHO','DIECINUEVE','VEINTE','VEINTIUN','VEINTIDOS','VEINTITRES','VEINTICUATRO','VEINTICINCO','VEINTISEIS','VEINTISIETE','VEINTIOCHO','VEINTINUEVE'];
+  const d=['','','','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA'];
   const c=['','CIEN','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS'];
-  function s(x){if(!x)return'';if(x===100)return'CIEN';if(x<20)return u[x];if(x<100)return d[Math.floor(x/10)]+(x%10?' Y '+u[x%10]:'');return c[Math.floor(x/100)]+(x%100?' '+s(x%100):'');}
-  const cents=Math.round((n%1)*100),pesos=Math.floor(n);
-  const miles=Math.floor(pesos/1000),resto=pesos%1000;
-  let r=(miles?((miles===1?'MIL':s(miles)+' MIL')+(resto?' ':'')):'')+s(resto);
-  return r.trim()+' PESOS '+String(cents).padStart(2,'0')+'/100 M.N.';
+  function s(x){
+    if(!x) return '';
+    if(x===100) return 'CIEN';
+    if(x<30) return u[x];
+    if(x<100) return d[Math.floor(x/10)] + (x%10 ? ' Y '+u[x%10] : '');
+    const cent = Math.floor(x/100);
+    const rest = x%100;
+    const prefix = (cent===1 && rest>0) ? 'CIENTO' : c[cent];
+    return prefix + (rest ? ' '+s(rest) : '');
+  }
+  function miles(x){
+    if(x < 1000) return s(x);
+    const m = Math.floor(x/1000);
+    const r = x%1000;
+    const prefijoMiles = (m===1) ? 'MIL' : s(m)+' MIL';
+    return prefijoMiles + (r ? ' '+s(r) : '');
+  }
+  const cents = Math.round((n%1)*100);
+  const pesos = Math.floor(n);
+  const millones = Math.floor(pesos/1000000);
+  const restoMillones = pesos%1000000;
+  let texto = '';
+  if(millones > 0){
+    const prefijoMill = (millones===1) ? 'UN MILLON' : miles(millones)+' MILLONES';
+    texto = prefijoMill + (restoMillones ? ' '+miles(restoMillones) : '');
+  } else {
+    texto = miles(pesos);
+  }
+  if(!texto) texto = 'CERO';
+  return texto.trim() + ' PESOS ' + String(cents).padStart(2,'0') + '/100 M.N.';
 }
 
 const TERMINOS=[
