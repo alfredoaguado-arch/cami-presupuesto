@@ -366,12 +366,24 @@ async function generarPDF(){
     const pdfB64 = doc.output('datauristring').split(',')[1];
     doc.save('Presupuesto_'+cliente.replace(/\s+/g,'_')+'_'+folio+'.pdf');
     showToast('PDF descargado. Guardando en Drive...','ok');
-    // Enviar al Apps Script (Content-Type text/plain evita preflight CORS)
+    // Leer token de sesion antes de enviar
+    let token = '';
     try {
-      const resp = await fetch('https://script.google.com/macros/s/AKfycbw8Ucc9J3_TQcsAR0tn2Lk5DBN2bPWG6HF2pm3GfoEwa2NlRFQn5qZPVj7gy-IaLBSg/exec', {
+      const s = JSON.parse(sessionStorage.getItem('cami_session') || '{}');
+      token = s.token || '';
+    } catch(e) { token = ''; }
+    if (!token) {
+      showToast('PDF descargado. Sesion no encontrada: vuelve a iniciar sesion para guardar en Drive.','err');
+      return;
+    }
+    // Enviar al Apps Script CAMI-Presupuesto (Content-Type text/plain evita preflight CORS)
+    try {
+      const resp = await fetch('https://script.google.com/macros/s/AKfycbwwUKViQrlSMrsS07snCqXhmndPA9_UDT-2r-AR2LQ98uSL4Z4A81m-hPJlliIcYeiV/exec', {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
+          action: 'cotizacion',
+          token,
           folio, cliente, obra, lugar, duracion,
           fecha: fechaRaw, titulo,
           subtotal: sub, iva, total,
@@ -379,8 +391,17 @@ async function generarPDF(){
         })
       });
       const result = await resp.json();
-      if(result.ok) showToast('✓ PDF descargado y guardado en Drive: '+folio,'ok');
-      else showToast('PDF descargado. Error Drive: '+(result.error||''),'err');
+      if(result.ok) {
+        showToast('✓ PDF descargado y guardado en Drive: '+folio,'ok');
+      } else if (result.error && /sesion/i.test(result.error)) {
+        // Sesion expirada: avisar y ofrecer regresar al login
+        showToast('PDF descargado. '+result.error+' Redirigiendo al login...','err');
+        setTimeout(() => {
+          window.location.href = 'https://alfredoaguado-arch.github.io/cami-app2/';
+        }, 2500);
+      } else {
+        showToast('PDF descargado. Error Drive: '+(result.error||''),'err');
+      }
     } catch(driveErr) {
       showToast('PDF descargado. Error al guardar en Drive.','err');
       console.error('Drive error:', driveErr);
