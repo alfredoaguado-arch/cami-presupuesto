@@ -43,8 +43,8 @@ textarea{resize:vertical;min-height:60px}
 .totals td:last-child{font-weight:700;text-align:right}
 .total-final td{font-size:15px;border-top:1px solid #4A4A48;padding-top:8px}
 .letras{font-size:11px;color:#4A4A48;font-style:italic;margin-top:.5rem;padding:8px 12px;background:#f5f3ee;border-radius:4px;border:0.5px solid #d3d1c7}
-.btn-row{display:flex;gap:10px;margin-top:1rem}
-.btn-pdf{flex:1;padding:13px;background:#4A4A48;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Courier New',monospace;letter-spacing:.04em;transition:background .15s}
+.btn-row{display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap}
+.btn-pdf{flex:1;min-width:140px;padding:13px;background:#4A4A48;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Courier New',monospace;letter-spacing:.04em;transition:background .15s}
 .btn-pdf:hover{background:#333331}
 .btn-pdf:disabled{background:#d3d1c7;cursor:not-allowed}
 .toast{display:none;padding:10px 16px;border-radius:6px;font-size:12px;margin-top:10px;line-height:1.6}
@@ -120,33 +120,82 @@ textarea{resize:vertical;min-height:60px}
     </div>
     <div class="btn-row">
       <button class="btn-pdf" id="btn-pdf" onclick="generarPDF()">Generar PDF</button>
+      <button class="btn-pdf" type="button" onclick="abrirSelectorDrive()">Cargar desde Drive</button>
+      <button class="btn-pdf" type="button" onclick="document.getElementById('pdf-import').click()">Cargar PDF local</button>
+      <input type="file" id="pdf-import" accept="application/pdf" style="display:none" onchange="cargarCotizacionDesdePDF(event)"/>
     </div>
     <div class="toast" id="toast"></div>
   </div>
 </div>
+
+<!-- Modal: Selector de cotizaciones en Drive -->
+<div id="drive-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:10px;max-width:600px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid #e5e3da;display:flex;justify-content:space-between;align-items:center;">
+      <strong style="font-family:'Courier New',monospace;">Selecciona una cotizacion</strong>
+      <button onclick="cerrarSelectorDrive()" style="border:none;background:none;font-size:1.5rem;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <input type="text" id="drive-search" placeholder="Buscar por nombre o folio..." oninput="filtrarListaDrive()" style="margin:0.75rem 1.5rem;padding:0.6rem 0.8rem;border:1px solid #d3d1c7;border-radius:6px;font-family:'Courier New',monospace;"/>
+    <div id="drive-list" style="overflow-y:auto;padding:0 1.5rem 1rem;flex:1;font-family:'Courier New',monospace;font-size:0.9rem;">
+      <div style="padding:2rem;text-align:center;color:#888;">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
+// PDF.js worker
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwwUKViQrlSMrsS07snCqXhmndPA9_UDT-2r-AR2LQ98uSL4Z4A81m-hPJlliIcYeiV/exec';
+
 document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
 
-const BANCOS=[''];
-function addGrupo(){
+function getToken() {
+  const raw = sessionStorage.getItem('cami_session');
+  if (!raw) { redirigirALogin(); return null; }
+  try {
+    const s = JSON.parse(raw);
+    if (!s.token) { redirigirALogin(); return null; }
+    return s.token;
+  } catch(e) { return raw; }
+}
+
+function redirigirALogin() {
+  alert('Sesion expirada. Seras redirigido al login.');
+  setTimeout(() => { window.location.href = 'https://alfredoaguado-arch.github.io/cami-app2/'; }, 500);
+}
+
+function addGrupo(texto){
   const tr=document.createElement('tr');
   tr.className='group-row'; tr.dataset.tipo='grupo';
-  tr.innerHTML='<td colspan="6"><input type="text" placeholder="NOMBRE DEL GRUPO (ej. GPA)" style="width:100%"/></td><td><button class="btn-del" style="color:#666" onclick="delRow(this)">x</button></td>';
+  const val = texto || '';
+  tr.innerHTML='<td colspan="6"><input type="text" placeholder="NOMBRE DEL GRUPO (ej. GPA)" value="'+escapeAttr(val)+'" style="width:100%"/></td><td><button class="btn-del" style="color:#666" onclick="delRow(this)">x</button></td>';
   document.getElementById('partidas-body').appendChild(tr);
 }
-function addItem(){
+function addItem(item){
   const tr=document.createElement('tr');
   tr.dataset.tipo='item';
+  const cod  = item ? (item.cod || '') : '';
+  const conc = item ? (item.conc || '') : '';
+  const und  = item ? (item.und || '') : '';
+  const qty  = item ? (item.qty || '') : '';
+  const pu   = item ? (item.pu || '') : '';
+  const imp  = item ? (item.imp || 0) : 0;
   tr.innerHTML=
-    '<td><input type="text" placeholder="GPA-010"/></td>'+
-    '<td><textarea rows="2" style="font-size:11px;padding:5px 6px;resize:vertical" placeholder="Descripcion del concepto..."></textarea></td>'+
-    '<td><input type="text" placeholder="PZAS"/></td>'+
-    '<td><input type="number" min="0" step="any" placeholder="0" oninput="calc(this)"/></td>'+
-    '<td><input type="number" min="0" step="0.01" placeholder="0.00" oninput="calc(this)"/></td>'+
-    '<td style="text-align:right;vertical-align:middle"><span class="imp-val">$0.00</span></td>'+
+    '<td><input type="text" placeholder="GPA-010" value="'+escapeAttr(cod)+'"/></td>'+
+    '<td><textarea rows="2" style="font-size:11px;padding:5px 6px;resize:vertical" placeholder="Descripcion del concepto...">'+escapeHtml(conc)+'</textarea></td>'+
+    '<td><input type="text" placeholder="PZAS" value="'+escapeAttr(und)+'"/></td>'+
+    '<td><input type="number" min="0" step="any" placeholder="0" value="'+(qty||'')+'" oninput="calc(this)"/></td>'+
+    '<td><input type="number" min="0" step="0.01" placeholder="0.00" value="'+(pu||'')+'" oninput="calc(this)"/></td>'+
+    '<td style="text-align:right;vertical-align:middle"><span class="imp-val">'+fmt(imp||0)+'</span></td>'+
     '<td><button class="btn-del" onclick="delRow(this)">x</button></td>';
   document.getElementById('partidas-body').appendChild(tr);
 }
+function escapeHtml(s){const d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}
+function escapeAttr(s){return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function delRow(b){
   const rows=document.querySelectorAll('#partidas-body tr');
   if(rows.length>1){b.closest('tr').remove();totales();}
@@ -230,9 +279,24 @@ const TERMINOS2=[
   '4.- CAMI no sera responsable por danos indirectos o perdida de ganancias derivados del uso del producto.'
 ];
 
-function showToast(msg,tipo){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+tipo;setTimeout(()=>t.classList.remove('show'),5000);}
+function showToast(msg,tipo){const t=document.getElementById('toast');t.innerHTML=msg;t.className='toast show '+tipo;setTimeout(()=>t.classList.remove('show'),6000);}
 
-async function generarPDF(){
+// ── Construir folio en el frontend (preview, el backend lo regenera) ──
+function construirFolioPreview(cliente, fecha) {
+  const cli = simplificar(cliente, 5);
+  const f = fecha || new Date().toISOString().split('T')[0];
+  return 'COT-' + cli + '-XXX-' + f;
+}
+function simplificar(texto, maxLen) {
+  if (!texto) return 'XXXX'.substring(0, maxLen);
+  let s = String(texto).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+  if (s.length === 0) s = 'XXXX';
+  if (s.length < maxLen) s = (s + 'XXXX').substring(0, maxLen);
+  return s.substring(0, maxLen);
+}
+
+// ── Recolectar datos del formulario ───────────────────────────
+function recolectarDatos() {
   const cliente=document.getElementById('cliente').value.trim();
   const obra=document.getElementById('obra').value.trim();
   const duracion=document.getElementById('duracion').value.trim();
@@ -240,7 +304,6 @@ async function generarPDF(){
   const lugar=document.getElementById('lugar').value.trim();
   const titulo=document.getElementById('titulo').value.trim();
   const obs=document.getElementById('obs').value.trim();
-  if(!cliente||!obra||!duracion||!fechaRaw||!titulo){showToast('Completa los campos obligatorios.','err');return;}
   const items=[];
   document.querySelectorAll('#partidas-body tr').forEach(tr=>{
     if(tr.dataset.tipo==='grupo'){items.push({tipo:'grupo',texto:tr.querySelector('input').value.trim()});}
@@ -251,64 +314,244 @@ async function generarPDF(){
       items.push({tipo:'item',cod:ins[0].value.trim(),conc:tr.querySelector('textarea').value.trim(),und:ins[1]?.value.trim()||'',qty,pu,imp:qty*pu});
     }
   });
-  if(!items.some(i=>i.tipo==='item')){showToast('Agrega al menos un concepto.','err');return;}
+  return { cliente, obra, duracion, fecha: fechaRaw, lugar, titulo, obs, items };
+}
+
+// ── Aplicar datos al formulario (carga de PDF) ────────────────
+function aplicarDatosAlFormulario(d) {
+  if (d.cliente) document.getElementById('cliente').value = d.cliente;
+  if (d.obra) document.getElementById('obra').value = d.obra;
+  if (d.duracion) document.getElementById('duracion').value = d.duracion;
+  if (d.fecha) document.getElementById('fecha').value = d.fecha;
+  if (d.lugar) document.getElementById('lugar').value = d.lugar;
+  if (d.titulo) document.getElementById('titulo').value = d.titulo;
+  if (d.obs) document.getElementById('obs').value = d.obs;
+  
+  // Limpiar partidas y reagregar
+  const tbody = document.getElementById('partidas-body');
+  tbody.innerHTML = '';
+  if (Array.isArray(d.items)) {
+    d.items.forEach(it => {
+      if (it.tipo === 'grupo') addGrupo(it.texto);
+      else if (it.tipo === 'item') addItem(it);
+    });
+  }
+  
+  totales();
+}
+
+// ── Selector de cotizaciones desde Drive ─────────────────────
+let _driveCache = [];
+
+async function abrirSelectorDrive() {
+  const token = getToken();
+  if (!token) return;
+  
+  document.getElementById('drive-modal').style.display = 'flex';
+  document.getElementById('drive-search').value = '';
+  document.getElementById('drive-list').innerHTML = '<div style="padding:2rem;text-align:center;color:#888;">Cargando lista de Drive...</div>';
+  
+  try {
+    const url = `${SCRIPT_URL}?accion=listarCotizaciones&token=${encodeURIComponent(token)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (data.error && /sesion/i.test(data.error)) {
+      cerrarSelectorDrive();
+      redirigirALogin();
+      return;
+    }
+    
+    if (!data.ok) {
+      document.getElementById('drive-list').innerHTML = '<div style="padding:2rem;color:#A32D2D;">Error: ' + (data.error || 'desconocido') + '</div>';
+      return;
+    }
+    
+    _driveCache = data.archivos || [];
+    renderListaDrive(_driveCache);
+    
+  } catch (err) {
+    document.getElementById('drive-list').innerHTML = '<div style="padding:2rem;color:#A32D2D;">Error de red: ' + err.message + '</div>';
+  }
+}
+
+function cerrarSelectorDrive() {
+  document.getElementById('drive-modal').style.display = 'none';
+}
+
+function renderListaDrive(lista) {
+  const cont = document.getElementById('drive-list');
+  if (lista.length === 0) {
+    cont.innerHTML = '<div style="padding:2rem;text-align:center;color:#888;">No se encontraron cotizaciones.</div>';
+    return;
+  }
+  
+  cont.innerHTML = lista.map(f => {
+    const fecha = new Date(f.fecha).toLocaleDateString('es-MX');
+    return `<div onclick="seleccionarPdfDrive('${f.id}')" style="padding:0.7rem 0.5rem;border-bottom:1px solid #e5e3da;cursor:pointer;display:flex;justify-content:space-between;gap:1rem;" onmouseover="this.style.background='#f5f3ee'" onmouseout="this.style.background='transparent'">
+      <span style="font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.name)}</span>
+      <span style="color:#888;font-size:0.85rem;flex-shrink:0;">${fecha}</span>
+    </div>`;
+  }).join('');
+}
+
+function filtrarListaDrive() {
+  const q = document.getElementById('drive-search').value.toLowerCase().trim();
+  if (!q) { renderListaDrive(_driveCache); return; }
+  const filtrada = _driveCache.filter(f => f.name.toLowerCase().indexOf(q) >= 0);
+  renderListaDrive(filtrada);
+}
+
+async function seleccionarPdfDrive(fileId) {
+  const token = getToken();
+  if (!token) return;
+  
+  const cont = document.getElementById('drive-list');
+  cont.innerHTML = '<div style="padding:2rem;text-align:center;color:#888;">Descargando PDF...</div>';
+  
+  try {
+    const url = `${SCRIPT_URL}?accion=descargarCotizacion&fileId=${encodeURIComponent(fileId)}&token=${encodeURIComponent(token)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (data.error && /sesion/i.test(data.error)) {
+      cerrarSelectorDrive();
+      redirigirALogin();
+      return;
+    }
+    
+    if (!data.ok) {
+      cont.innerHTML = '<div style="padding:2rem;color:#A32D2D;">Error: ' + (data.error || 'desconocido') + '</div>';
+      return;
+    }
+    
+    const base64 = data.base64.replace(/^data:application\/pdf;base64,/, '');
+    const bin = atob(base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    
+    const loadingTask = pdfjsLib.getDocument({ data: bytes.buffer });
+    const pdf = await loadingTask.promise;
+    const metadata = await pdf.getMetadata();
+    const subject = (metadata.info && metadata.info.Subject) || '';
+    const PREFIX = 'CAMI_COT_DATA::';
+    
+    if (subject.indexOf(PREFIX) !== 0) {
+      cont.innerHTML = '<div style="padding:2rem;color:#A32D2D;">Esta cotizacion fue creada antes del sistema nuevo y no tiene metadata. No se puede cargar automaticamente.</div>';
+      return;
+    }
+    
+    const datos = JSON.parse(subject.substring(PREFIX.length));
+    aplicarDatosAlFormulario(datos);
+    cerrarSelectorDrive();
+    showToast('Datos cargados desde <b>' + escapeHtml(data.name) + '</b>. Modifica lo necesario y guarda con folio nuevo.', 'ok');
+    
+  } catch (err) {
+    cont.innerHTML = '<div style="padding:2rem;color:#A32D2D;">Error: ' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+// ── Cargar cotizacion desde PDF local ────────────────────────
+async function cargarCotizacionDesdePDF(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  
+  try {
+    const buffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: buffer });
+    const pdf = await loadingTask.promise;
+    const metadata = await pdf.getMetadata();
+    const subject = (metadata.info && metadata.info.Subject) || '';
+    const PREFIX = 'CAMI_COT_DATA::';
+    
+    if (subject.indexOf(PREFIX) !== 0) {
+      showToast('Este PDF no fue generado por el sistema CAMI o no contiene metadata.', 'err');
+      return;
+    }
+    
+    const datos = JSON.parse(subject.substring(PREFIX.length));
+    aplicarDatosAlFormulario(datos);
+    showToast('Datos cargados desde PDF local. Modifica lo necesario y guarda con folio nuevo.', 'ok');
+    
+  } catch (err) {
+    showToast('Error leyendo PDF: ' + err.message, 'err');
+  }
+}
+
+// ── Generar PDF y subir a Drive ───────────────────────────────
+async function generarPDF(){
+  const d = recolectarDatos();
+  if(!d.cliente||!d.obra||!d.duracion||!d.fecha||!d.titulo){showToast('Completa los campos obligatorios.','err');return;}
+  if(!d.items.some(i=>i.tipo==='item')){showToast('Agrega al menos un concepto.','err');return;}
+  
   const btn=document.getElementById('btn-pdf');
   btn.disabled=true;btn.textContent='Generando...';
-  const fechaFmt=new Date(fechaRaw+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  
+  const fechaFmt=new Date(d.fecha+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const sub=parseFloat(document.getElementById('subtotal').textContent.replace(/[^0-9.]/g,''))||0;
   const iva=sub*.16,total=sub+iva;
-  const folio='COT-'+Date.now().toString().slice(-6);
+  
+  // Folio preview (el real lo asigna el backend, pero mostramos uno temporal en el PDF)
+  const folioPreview = construirFolioPreview(d.cliente, d.fecha);
+  
   try {
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
+    
+    // Embeber metadata para reutilización futura
+    const metadataJSON = JSON.stringify(d);
+    doc.setProperties({
+      title: 'Cotizacion - ' + d.cliente,
+      subject: 'CAMI_COT_DATA::' + metadataJSON,
+      keywords: 'CAMI Cotizacion ' + d.cliente,
+      creator: 'CAMI Sistema'
+    });
+    
     const W=215.9,pL=12,pR=12,cW=W-pL-pR;
     let y=10;
-    // Cargar logo real desde GitHub
+    
+    // Logo
     let logoB64='';
     try {
       const r=await Promise.race([fetch('https://raw.githubusercontent.com/alfredoaguado-arch/cami-presupuesto/main/logo.png'),new Promise((_,rj)=>setTimeout(()=>rj(new Error('timeout')),6000))]);
       const blob=await r.blob();
       logoB64=await new Promise(res=>{const rd=new FileReader();rd.onloadend=()=>res(rd.result);rd.onerror=()=>res('');rd.readAsDataURL(blob);});
     } catch(e){console.warn('Logo no cargado:',e.message);}
-    // Header integrado - sin lineas internas, flujo natural
+    
+    // Header
     const headerH = 34;
     const logoW = 40;
     const logoH = 28;
-    // Barra naranja accent en la parte superior (identidad de marca)
     doc.setFillColor(230,100,30);doc.rect(pL,y,cW,2.5,'F');
     y+=2.5;
-    // Header sin borde inferior prominente, fondo blanco limpio
     doc.setFillColor(255,255,255);doc.rect(pL,y,cW,headerH,'F');
-    // Logo sin caja - flotando sobre el fondo blanco
     if(logoB64) doc.addImage(logoB64,'PNG',pL+2,y+3,logoW,logoH,'','FAST');
-    // Layout: logo izq | empresa centro | folio der (sin solapamiento)
-    const folioW = 38; // espacio reservado para folio a la derecha
+    const folioW = 38;
     const textStart = pL + logoW + 6;
     const textEnd = W - pR - folioW;
     const midX = textStart + (textEnd - textStart)/2;
-    // Nombre empresa - limitado para no tocar la zona del folio
     doc.setTextColor(26,26,24);doc.setFontSize(11);doc.setFont('helvetica','bold');
     doc.text('COMERCIALIZADORA DE ACEROS',midX,y+11,{align:'center'});
     doc.text('MANUFACTURADOS PARA LA INDUSTRIA',midX,y+18,{align:'center'});
     doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(130,130,130);
     doc.text('Estado de Mexico',midX,y+26,{align:'center'});
-    // Folio y pagina - zona derecha reservada
     doc.setDrawColor(220);doc.setLineWidth(0.2);
     doc.line(W-pR-folioW+2,y+4,W-pR-folioW+2,y+headerH-4);
     doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(26,26,24);
     doc.text('FOLIO',W-pR-folioW/2,y+11,{align:'center'});
-    doc.setFontSize(8.5);doc.setFont('helvetica','normal');doc.setTextColor(230,100,30);
-    doc.text(folio,W-pR-folioW/2,y+19,{align:'center'});
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(230,100,30);
+    doc.text(folioPreview,W-pR-folioW/2,y+19,{align:'center',maxWidth:folioW-2});
     doc.setFontSize(7);doc.setTextColor(150);
     doc.text('Pagina 1',W-pR-folioW/2,y+27,{align:'center'});
-    // Linea inferior delgada gris (solo una, sin caja)
     doc.setDrawColor(220);doc.setLineWidth(0.4);doc.line(pL,y+headerH,pL+cW,y+headerH);
     doc.setTextColor(0);y+=headerH+2;
+    
     // Datos cliente
     doc.setLineWidth(0.3);doc.setDrawColor(0);doc.rect(pL,y,cW,22);
     doc.setDrawColor(210);doc.setLineWidth(0.2);doc.line(pL+cW-60,y,pL+cW-60,y+22);
     doc.setFontSize(8.5);
-    [['Cliente:',cliente],['Obra:',obra],['Lugar:',lugar||'-']].forEach(([lbl,val],i)=>{
+    [['Cliente:',d.cliente],['Obra:',d.obra],['Lugar:',d.lugar||'-']].forEach(([lbl,val],i)=>{
       doc.setFont('helvetica','normal');doc.setTextColor(120);doc.text(lbl,pL+2,y+5+i*6);
       doc.setFont('helvetica','bold');doc.setTextColor(0);
       doc.text(doc.splitTextToSize(val,cW-65)[0],pL+22,y+5+i*6);
@@ -316,14 +559,16 @@ async function generarPDF(){
     doc.setFont('helvetica','normal');doc.setTextColor(120);
     doc.text('Duracion:',pL+cW-58,y+5);doc.text('Fecha:',pL+cW-58,y+13);
     doc.setFont('helvetica','bold');doc.setTextColor(0);
-    doc.text(duracion,pL+cW-58,y+10);doc.text(fechaFmt,pL+cW-58,y+18);y+=22;
-    // Titulo con acento naranja
+    doc.text(d.duracion,pL+cW-58,y+10);doc.text(fechaFmt,pL+cW-58,y+18);y+=22;
+    
+    // Titulo
     doc.setFillColor(240,240,240);doc.rect(pL,y,cW,9,'F');
     doc.setFillColor(230,100,30);doc.rect(pL,y,3,9,'F');
     doc.setDrawColor(0);doc.setLineWidth(0.3);doc.rect(pL,y,cW,9);
     doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,26,24);
-    doc.text(titulo.toUpperCase(),pL+cW/2,y+6,{align:'center'});y+=9;
-    // Tabla header
+    doc.text(d.titulo.toUpperCase(),pL+cW/2,y+6,{align:'center'});y+=9;
+    
+    // Tabla
     const cx={cod:pL,conc:pL+20,und:pL+102,qty:pL+120,pu:pL+138,imp:pL+163};
     const cws={cod:20,conc:82,und:18,qty:18,pu:25,imp:W-pR-pL-163};
     doc.setFillColor(26,26,24);doc.setTextColor(255,255,255);doc.rect(pL,y,cW,7,'F');
@@ -331,7 +576,7 @@ async function generarPDF(){
     [['Codigo',cx.cod,cws.cod],['Concepto',cx.conc,cws.conc],['Unidad',cx.und,cws.und],['Cantidad',cx.qty,cws.qty],['P. Unitario',cx.pu,cws.pu],['Importe',cx.imp,cws.imp]].forEach(([h,x,w])=>doc.text(h,x+w/2,y+5,{align:'center'}));
     doc.setTextColor(0);y+=7;
     const startY=y;doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-    items.forEach(item=>{
+    d.items.forEach(item=>{
       if(y>245){doc.addPage();y=10;}
       if(item.tipo==='grupo'){
         doc.setFillColor(50,50,50);doc.setTextColor(255,255,255);
@@ -365,10 +610,10 @@ async function generarPDF(){
     });
     y+=2;doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(0);
     doc.splitTextToSize('('+numLetras(total)+')',cW-4).forEach(l=>{doc.text(l,pL+2,y+4);y+=5;});
-    if(obs){y+=3;if(y>240){doc.addPage();y=10;}
+    if(d.obs){y+=3;if(y>240){doc.addPage();y=10;}
       doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('OBSERVACIONES:',pL,y+4);y+=7;
       doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-      doc.splitTextToSize(obs,cW-2).forEach(l=>{if(y>250){doc.addPage();y=10;}doc.text(l,pL+2,y+4);y+=5;});
+      doc.splitTextToSize(d.obs,cW-2).forEach(l=>{if(y>250){doc.addPage();y=10;}doc.text(l,pL+2,y+4);y+=5;});
     }
     if(y>210){doc.addPage();y=10;}y+=5;
     doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('TERMINOS Y CONDICIONES',pL,y+4);y+=7;
@@ -387,57 +632,48 @@ async function generarPDF(){
       doc.text('Autorizado por CAMI',pL+42,y+5,{align:'center'});
       doc.text('Aceptado por el Cliente',pL+cW-42,y+5,{align:'center'});
     }
-    // Guardar en Drive y descargar localmente
+    
+    // Enviar al backend
+    const token = getToken();
+    if (!token) { btn.disabled=false;btn.textContent='Generar PDF'; return; }
+    
+    showToast('Subiendo a Drive...','ok');
     const pdfB64 = doc.output('datauristring').split(',')[1];
-    doc.save('Presupuesto_'+cliente.replace(/\s+/g,'_')+'_'+folio+'.pdf');
-    showToast('PDF descargado. Guardando en Drive...','ok');
-    // Leer token de sesion antes de enviar
-    let token = '';
-    try {
-      const s = JSON.parse(sessionStorage.getItem('cami_session') || '{}');
-      token = s.token || '';
-    } catch(e) { token = ''; }
-    if (!token) {
-      showToast('PDF descargado. Sesion no encontrada: vuelve a iniciar sesion para guardar en Drive.','err');
-      return;
-    }
-    // Enviar al Apps Script CAMI-Presupuesto (Content-Type text/plain evita preflight CORS)
-    try {
-      const resp = await fetch('https://script.google.com/macros/s/AKfycbwwUKViQrlSMrsS07snCqXhmndPA9_UDT-2r-AR2LQ98uSL4Z4A81m-hPJlliIcYeiV/exec', {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({
-          action: 'cotizacion',
-          token,
-          folio, cliente, obra, lugar, duracion,
-          fecha: fechaRaw, titulo,
-          subtotal: sub, iva, total,
-          pdf: pdfB64
-        })
-      });
-      const result = await resp.json();
-      if(result.ok) {
-        showToast('✓ PDF descargado y guardado en Drive: '+folio,'ok');
-      } else if (result.error && /sesion/i.test(result.error)) {
-        // Sesion expirada: avisar y ofrecer regresar al login
-        showToast('PDF descargado. '+result.error+' Redirigiendo al login...','err');
-        setTimeout(() => {
-          window.location.href = 'https://alfredoaguado-arch.github.io/cami-app2/';
-        }, 2500);
-      } else {
-        showToast('PDF descargado. Error Drive: '+(result.error||''),'err');
-      }
-    } catch(driveErr) {
-      showToast('PDF descargado. Error al guardar en Drive.','err');
-      console.error('Drive error:', driveErr);
+    
+    const resp = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'cotizacion',
+        token,
+        cliente: d.cliente, obra: d.obra, lugar: d.lugar, duracion: d.duracion,
+        fecha: d.fecha, titulo: d.titulo,
+        subtotal: sub, iva, total,
+        pdf: pdfB64
+      })
+    });
+    const result = await resp.json();
+    
+    if(result.ok) {
+      // Descargar PDF localmente con el folio real del backend
+      doc.save(result.folio + '.pdf');
+      let msg = 'Cotizacion guardada con folio <b>' + result.folio + '</b>';
+      if (result.url) msg += '<br><a href="' + result.url + '" target="_blank">Ver en Drive</a>';
+      showToast(msg, 'ok');
+    } else if (result.error && /sesion/i.test(result.error)) {
+      showToast(result.error + ' Redirigiendo al login...','err');
+      setTimeout(() => { window.location.href = 'https://alfredoaguado-arch.github.io/cami-app2/'; }, 2500);
+    } else {
+      showToast('Error: '+(result.error||'desconocido'),'err');
     }
   } catch(err){
     console.error('Error PDF:',err);
-    showToast('Error al generar PDF: '+err.message,'err');
+    showToast('Error: '+err.message,'err');
   } finally {
     btn.disabled=false;btn.textContent='Generar PDF';
   }
 }
+
 addGrupo();addItem();
 </script>
 </body>
