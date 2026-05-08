@@ -25,6 +25,9 @@ body{background:#EFEFED;font-family:'Courier New',monospace;min-height:100vh;pad
 input,select,textarea{width:100%;padding:9px 11px;border:0.5px solid #d3d1c7;border-radius:6px;font-family:'Courier New',monospace;font-size:13px;background:#fafaf8;color:#1a1a18;outline:none;transition:border .15s}
 input:focus,select:focus,textarea:focus{border-color:#4A4A48;background:#fff}
 textarea{resize:vertical;min-height:60px}
+.input-suffix{display:flex;gap:8px;align-items:center}
+.input-suffix input{flex:1;min-width:0}
+.input-suffix .sfx{font-size:10px;color:#888780;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;font-weight:700}
 .partidas-wrap{overflow-x:auto;margin-bottom:.75rem}
 .pt{width:100%;border-collapse:collapse;font-size:12px;min-width:700px}
 .pt th{background:#f5f3ee;color:#888780;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:7px 8px;text-align:left;border-bottom:0.5px solid #d3d1c7;font-size:10px}
@@ -43,6 +46,10 @@ textarea{resize:vertical;min-height:60px}
 .totals td:last-child{font-weight:700;text-align:right}
 .total-final td{font-size:15px;border-top:1px solid #4A4A48;padding-top:8px}
 .letras{font-size:11px;color:#4A4A48;font-style:italic;margin-top:.5rem;padding:8px 12px;background:#f5f3ee;border-radius:4px;border:0.5px solid #d3d1c7}
+.cond-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start}
+.cond-num{padding:10px 0;font-size:11px;color:#888780;min-width:28px;font-weight:700;text-align:right}
+.cond-row textarea{flex:1;font-size:12px;min-height:48px}
+.cond-help{font-size:10px;color:#888780;margin-top:6px;font-style:italic}
 .btn-row{display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap}
 .btn-pdf{flex:1;min-width:140px;padding:13px;background:#4A4A48;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Courier New',monospace;letter-spacing:.04em;transition:background .15s}
 .btn-pdf:hover{background:#333331}
@@ -71,12 +78,34 @@ textarea{resize:vertical;min-height:60px}
       <div class="section-title">Datos del cliente</div>
       <div class="grid3" style="margin-bottom:14px">
         <div><label class="fl">Cliente <span class="req">*</span></label><input type="text" id="cliente" placeholder="Nombre del cliente"/></div>
-        <div><label class="fl">Duracion <span class="req">*</span></label><input type="text" id="duracion" placeholder="ej. 15 dias habiles"/></div>
+        <div>
+          <label class="fl">Duracion <span class="req">*</span></label>
+          <div class="input-suffix">
+            <input type="number" id="duracion" min="1" step="1" placeholder="15"/>
+            <span class="sfx">dias habiles</span>
+          </div>
+        </div>
         <div><label class="fl">Fecha <span class="req">*</span></label><input type="date" id="fecha"/></div>
       </div>
-      <div class="grid2">
+      <div class="grid2" style="margin-bottom:14px">
         <div><label class="fl">Obra / Proyecto <span class="req">*</span></label><input type="text" id="obra" placeholder="Nombre del proyecto u obra"/></div>
         <div><label class="fl">Lugar</label><input type="text" id="lugar" placeholder="Ciudad / ubicacion"/></div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label class="fl">Vigencia de la cotizacion <span class="req">*</span></label>
+          <div class="input-suffix">
+            <input type="number" id="vigencia" min="1" step="1" placeholder="15"/>
+            <span class="sfx">dias naturales</span>
+          </div>
+        </div>
+        <div>
+          <label class="fl">Tiempo de entrega <span class="req">*</span></label>
+          <div class="input-suffix">
+            <input type="number" id="tiempoEntrega" min="1" step="1" placeholder="35"/>
+            <span class="sfx">dias habiles</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="section">
@@ -117,6 +146,14 @@ textarea{resize:vertical;min-height:60px}
     <div class="section">
       <label class="fl">Observaciones</label>
       <textarea id="obs" placeholder="Notas adicionales para el cliente..." rows="3"></textarea>
+    </div>
+    <div class="section">
+      <div class="section-title">
+        <span>Condiciones adicionales</span>
+        <button class="btn-add-item" onclick="addCondicion()">+ Condicion</button>
+      </div>
+      <div id="condiciones-extra-body"></div>
+      <div class="cond-help">Se anaden al final de TERMINOS Y CONDICIONES en el PDF, numeradas a partir del 15.</div>
     </div>
     <div class="btn-row">
       <button class="btn-pdf" id="btn-pdf" onclick="generarPDF()">Generar PDF</button>
@@ -194,6 +231,26 @@ function addItem(item){
     '<td><button class="btn-del" onclick="delRow(this)">x</button></td>';
   document.getElementById('partidas-body').appendChild(tr);
 }
+
+// ── Condiciones adicionales ──────────────────────────────────
+function addCondicion(texto) {
+  const cont = document.getElementById('condiciones-extra-body');
+  const div = document.createElement('div');
+  div.className = 'cond-row';
+  div.innerHTML =
+    '<span class="cond-num">15.</span>' +
+    '<textarea rows="2" placeholder="Texto de la condicion adicional...">'+escapeHtml(texto || '')+'</textarea>' +
+    '<button class="btn-del" style="padding:10px 3px" onclick="this.parentElement.remove();renumerarCondiciones()">x</button>';
+  cont.appendChild(div);
+  renumerarCondiciones();
+}
+function renumerarCondiciones() {
+  const items = document.querySelectorAll('#condiciones-extra-body .cond-row');
+  items.forEach((it, i) => {
+    it.querySelector('.cond-num').textContent = (15 + i) + '.';
+  });
+}
+
 function escapeHtml(s){const d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}
 function escapeAttr(s){return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function delRow(b){
@@ -256,22 +313,31 @@ function numLetras(n){
   return texto.trim() + ' PESOS ' + String(cents).padStart(2,'0') + '/100 M.N.';
 }
 
-const TERMINOS=[
-  '1.- Se requiere confirmacion formal por el cliente.',
-  '2.- Emitir una Orden de Compra para cantidades inferiores a las cotizadas puede resultar en precios unitarios mas altos.',
-  '3.- Al emitir la Orden de Compra, el cliente acepta los terminos y condiciones planteadas en esta cotizacion.',
-  '4.- Cualquier modificacion al alcance tendra que ser re-evaluado y re-cotizado.',
-  '5.- Se requiere un anticipo del 50% por el monto total de la orden de compra para cubrir gastos de materiales y consumibles.',
-  '6.- Tiempo de entrega despues de la orden de compra 35 dias habiles.',
-  '7.- Esta cotizacion tiene una vigencia de 15 dias naturales.',
-  '8.- Los precios anteriores estan sujetos a cambio sin previo aviso.',
-  '9.- CAMI se reserva el derecho de suspender la produccion si no se recibe el pago de los productos entregados conforme a los terminos y plazos acordados.',
-  '10.- Las solicitudes de pruebas especiales fuera de los controles de calidad estandar pueden generar costos adicionales.',
-  '11.- Cualquier cotizacion anterior a la presente perdio validez.',
-  '12.- Cualquier incumplimiento en el pago de las facturas podra derivar en la suspension temporal del proyecto hasta que se regularice la situacion.',
-  '13.- En caso de requerirse algun reporte, prueba o informacion especifica relacionada con calidad, debera ser solicitado expresamente y podra implicar un costo adicional.',
-  '14.- Presupuesto realizado con datos proporcionados por el cliente, se aclara que los datos son parametricos y se requiere el detalle de cada elemento para un costo mas exacto.'
-];
+// ── Construir lista de TERMINOS dinamicamente ────────────────
+function buildTerminos(d) {
+  const base = [
+    '1.- Se requiere confirmacion formal por el cliente.',
+    '2.- Emitir una Orden de Compra para cantidades inferiores a las cotizadas puede resultar en precios unitarios mas altos.',
+    '3.- Al emitir la Orden de Compra, el cliente acepta los terminos y condiciones planteadas en esta cotizacion.',
+    '4.- Cualquier modificacion al alcance tendra que ser re-evaluado y re-cotizado.',
+    '5.- Se requiere un anticipo del 50% por el monto total de la orden de compra para cubrir gastos de materiales y consumibles.',
+    '6.- Tiempo de entrega despues de la orden de compra ' + d.tiempoEntrega + ' dias habiles.',
+    '7.- Esta cotizacion tiene una vigencia de ' + d.vigencia + ' dias naturales.',
+    '8.- Los precios anteriores estan sujetos a cambio sin previo aviso.',
+    '9.- CAMI se reserva el derecho de suspender la produccion si no se recibe el pago de los productos entregados conforme a los terminos y plazos acordados.',
+    '10.- Las solicitudes de pruebas especiales fuera de los controles de calidad estandar pueden generar costos adicionales.',
+    '11.- Cualquier cotizacion anterior a la presente perdio validez.',
+    '12.- Cualquier incumplimiento en el pago de las facturas podra derivar en la suspension temporal del proyecto hasta que se regularice la situacion.',
+    '13.- En caso de requerirse algun reporte, prueba o informacion especifica relacionada con calidad, debera ser solicitado expresamente y podra implicar un costo adicional.',
+    '14.- Presupuesto realizado con datos proporcionados por el cliente, se aclara que los datos son parametricos y se requiere el detalle de cada elemento para un costo mas exacto.'
+  ];
+  const extras = (d.condicionesExtra || []).filter(c => c && String(c).trim());
+  extras.forEach((c, i) => {
+    base.push((15 + i) + '.- ' + String(c).trim());
+  });
+  return base;
+}
+
 const TERMINOS2=[
   '1.- No nos hacemos responsables por retrasos causados por eventos fuera de nuestro control.',
   '2.- Si el cliente no reporta defectos dentro de 5 dias habiles posteriores a la entrega, se considera que el material fue aceptado.',
@@ -299,7 +365,9 @@ function simplificar(texto, maxLen) {
 function recolectarDatos() {
   const cliente=document.getElementById('cliente').value.trim();
   const obra=document.getElementById('obra').value.trim();
-  const duracion=document.getElementById('duracion').value.trim();
+  const duracion=parseInt(document.getElementById('duracion').value)||0;
+  const vigencia=parseInt(document.getElementById('vigencia').value)||0;
+  const tiempoEntrega=parseInt(document.getElementById('tiempoEntrega').value)||0;
   const fechaRaw=document.getElementById('fecha').value;
   const lugar=document.getElementById('lugar').value.trim();
   const titulo=document.getElementById('titulo').value.trim();
@@ -314,19 +382,42 @@ function recolectarDatos() {
       items.push({tipo:'item',cod:ins[0].value.trim(),conc:tr.querySelector('textarea').value.trim(),und:ins[1]?.value.trim()||'',qty,pu,imp:qty*pu});
     }
   });
-  return { cliente, obra, duracion, fecha: fechaRaw, lugar, titulo, obs, items };
+  const condicionesExtra=[];
+  document.querySelectorAll('#condiciones-extra-body .cond-row textarea').forEach(ta=>{
+    const v=ta.value.trim();
+    if(v) condicionesExtra.push(v);
+  });
+  return { cliente, obra, duracion, vigencia, tiempoEntrega, fecha: fechaRaw, lugar, titulo, obs, items, condicionesExtra };
 }
 
 // ── Aplicar datos al formulario (carga de PDF) ────────────────
 function aplicarDatosAlFormulario(d) {
   if (d.cliente) document.getElementById('cliente').value = d.cliente;
   if (d.obra) document.getElementById('obra').value = d.obra;
-  if (d.duracion) document.getElementById('duracion').value = d.duracion;
   if (d.fecha) document.getElementById('fecha').value = d.fecha;
   if (d.lugar) document.getElementById('lugar').value = d.lugar;
   if (d.titulo) document.getElementById('titulo').value = d.titulo;
   if (d.obs) document.getElementById('obs').value = d.obs;
-  
+
+  // Backward compat: duracion antes era string ("15 dias habiles"), ahora es numero
+  if (d.duracion !== undefined && d.duracion !== null && d.duracion !== '') {
+    if (typeof d.duracion === 'number') {
+      document.getElementById('duracion').value = d.duracion;
+    } else {
+      const m = String(d.duracion).match(/\d+/);
+      document.getElementById('duracion').value = m ? m[0] : '';
+    }
+  }
+  // Campos nuevos: vigencia y tiempo de entrega (PDFs viejos no los traen)
+  if (d.vigencia) document.getElementById('vigencia').value = d.vigencia;
+  if (d.tiempoEntrega) document.getElementById('tiempoEntrega').value = d.tiempoEntrega;
+
+  // Limpiar y reagregar condiciones extra
+  document.getElementById('condiciones-extra-body').innerHTML = '';
+  if (Array.isArray(d.condicionesExtra)) {
+    d.condicionesExtra.forEach(c => addCondicion(c));
+  }
+
   // Limpiar partidas y reagregar
   const tbody = document.getElementById('partidas-body');
   tbody.innerHTML = '';
@@ -336,7 +427,7 @@ function aplicarDatosAlFormulario(d) {
       else if (it.tipo === 'item') addItem(it);
     });
   }
-  
+
   totales();
 }
 
@@ -346,30 +437,30 @@ let _driveCache = [];
 async function abrirSelectorDrive() {
   const token = getToken();
   if (!token) return;
-  
+
   document.getElementById('drive-modal').style.display = 'flex';
   document.getElementById('drive-search').value = '';
   document.getElementById('drive-list').innerHTML = '<div style="padding:2rem;text-align:center;color:#888;">Cargando lista de Drive...</div>';
-  
+
   try {
     const url = `${SCRIPT_URL}?accion=listarCotizaciones&token=${encodeURIComponent(token)}`;
     const res = await fetch(url);
     const data = await res.json();
-    
+
     if (data.error && /sesion/i.test(data.error)) {
       cerrarSelectorDrive();
       redirigirALogin();
       return;
     }
-    
+
     if (!data.ok) {
       document.getElementById('drive-list').innerHTML = '<div style="padding:2rem;color:#A32D2D;">Error: ' + (data.error || 'desconocido') + '</div>';
       return;
     }
-    
+
     _driveCache = data.archivos || [];
     renderListaDrive(_driveCache);
-    
+
   } catch (err) {
     document.getElementById('drive-list').innerHTML = '<div style="padding:2rem;color:#A32D2D;">Error de red: ' + err.message + '</div>';
   }
@@ -385,7 +476,7 @@ function renderListaDrive(lista) {
     cont.innerHTML = '<div style="padding:2rem;text-align:center;color:#888;">No se encontraron cotizaciones.</div>';
     return;
   }
-  
+
   cont.innerHTML = lista.map(f => {
     const fecha = new Date(f.fecha).toLocaleDateString('es-MX');
     return `<div onclick="seleccionarPdfDrive('${f.id}')" style="padding:0.7rem 0.5rem;border-bottom:1px solid #e5e3da;cursor:pointer;display:flex;justify-content:space-between;gap:1rem;" onmouseover="this.style.background='#f5f3ee'" onmouseout="this.style.background='transparent'">
@@ -405,47 +496,53 @@ function filtrarListaDrive() {
 async function seleccionarPdfDrive(fileId) {
   const token = getToken();
   if (!token) return;
-  
+
   const cont = document.getElementById('drive-list');
   cont.innerHTML = '<div style="padding:2rem;text-align:center;color:#888;">Descargando PDF...</div>';
-  
+
   try {
     const url = `${SCRIPT_URL}?accion=descargarCotizacion&fileId=${encodeURIComponent(fileId)}&token=${encodeURIComponent(token)}`;
     const res = await fetch(url);
     const data = await res.json();
-    
+
     if (data.error && /sesion/i.test(data.error)) {
       cerrarSelectorDrive();
       redirigirALogin();
       return;
     }
-    
+
     if (!data.ok) {
       cont.innerHTML = '<div style="padding:2rem;color:#A32D2D;">Error: ' + (data.error || 'desconocido') + '</div>';
       return;
     }
-    
+
     const base64 = data.base64.replace(/^data:application\/pdf;base64,/, '');
     const bin = atob(base64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    
+
     const loadingTask = pdfjsLib.getDocument({ data: bytes.buffer });
     const pdf = await loadingTask.promise;
     const metadata = await pdf.getMetadata();
     const subject = (metadata.info && metadata.info.Subject) || '';
     const PREFIX = 'CAMI_COT_DATA::';
-    
+
     if (subject.indexOf(PREFIX) !== 0) {
       cont.innerHTML = '<div style="padding:2rem;color:#A32D2D;">Esta cotizacion fue creada antes del sistema nuevo y no tiene metadata. No se puede cargar automaticamente.</div>';
       return;
     }
-    
+
     const datos = JSON.parse(subject.substring(PREFIX.length));
     aplicarDatosAlFormulario(datos);
     cerrarSelectorDrive();
-    showToast('Datos cargados desde <b>' + escapeHtml(data.name) + '</b>. Modifica lo necesario y guarda con folio nuevo.', 'ok');
-    
+    let aviso = 'Datos cargados desde <b>' + escapeHtml(data.name) + '</b>.';
+    if (!datos.vigencia || !datos.tiempoEntrega) {
+      aviso += ' <b>Captura vigencia y tiempo de entrega</b> antes de guardar.';
+    } else {
+      aviso += ' Modifica lo necesario y guarda con folio nuevo.';
+    }
+    showToast(aviso, 'ok');
+
   } catch (err) {
     cont.innerHTML = '<div style="padding:2rem;color:#A32D2D;">Error: ' + escapeHtml(err.message) + '</div>';
   }
@@ -456,7 +553,7 @@ async function cargarCotizacionDesdePDF(event) {
   const file = event.target.files[0];
   if (!file) return;
   event.target.value = '';
-  
+
   try {
     const buffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({ data: buffer });
@@ -464,16 +561,22 @@ async function cargarCotizacionDesdePDF(event) {
     const metadata = await pdf.getMetadata();
     const subject = (metadata.info && metadata.info.Subject) || '';
     const PREFIX = 'CAMI_COT_DATA::';
-    
+
     if (subject.indexOf(PREFIX) !== 0) {
       showToast('Este PDF no fue generado por el sistema CAMI o no contiene metadata.', 'err');
       return;
     }
-    
+
     const datos = JSON.parse(subject.substring(PREFIX.length));
     aplicarDatosAlFormulario(datos);
-    showToast('Datos cargados desde PDF local. Modifica lo necesario y guarda con folio nuevo.', 'ok');
-    
+    let aviso = 'Datos cargados desde PDF local.';
+    if (!datos.vigencia || !datos.tiempoEntrega) {
+      aviso += ' <b>Captura vigencia y tiempo de entrega</b> antes de guardar.';
+    } else {
+      aviso += ' Modifica lo necesario y guarda con folio nuevo.';
+    }
+    showToast(aviso, 'ok');
+
   } catch (err) {
     showToast('Error leyendo PDF: ' + err.message, 'err');
   }
@@ -482,24 +585,30 @@ async function cargarCotizacionDesdePDF(event) {
 // ── Generar PDF y subir a Drive ───────────────────────────────
 async function generarPDF(){
   const d = recolectarDatos();
-  if(!d.cliente||!d.obra||!d.duracion||!d.fecha||!d.titulo){showToast('Completa los campos obligatorios.','err');return;}
+  if(!d.cliente||!d.obra||!d.duracion||!d.vigencia||!d.tiempoEntrega||!d.fecha||!d.titulo){showToast('Completa los campos obligatorios (incluyendo duracion, vigencia y tiempo de entrega).','err');return;}
   if(!d.items.some(i=>i.tipo==='item')){showToast('Agrega al menos un concepto.','err');return;}
-  
+
   const btn=document.getElementById('btn-pdf');
   btn.disabled=true;btn.textContent='Generando...';
-  
+
   const fechaFmt=new Date(d.fecha+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const sub=parseFloat(document.getElementById('subtotal').textContent.replace(/[^0-9.]/g,''))||0;
   const iva=sub*.16,total=sub+iva;
-  
+
   // Folio preview (el real lo asigna el backend, pero mostramos uno temporal en el PDF)
   const folioPreview = construirFolioPreview(d.cliente, d.fecha);
-  
+
+  // Texto de duracion para el bloque cliente
+  const duracionTxt = d.duracion + ' dias habiles';
+
+  // Lista dinamica de terminos (con clausula 6, 7 y extras)
+  const TERMINOS = buildTerminos(d);
+
   try {
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
-    
-    // Embeber metadata para reutilización futura
+
+    // Embeber metadata para reutilizacion futura
     const metadataJSON = JSON.stringify(d);
     doc.setProperties({
       title: 'Cotizacion - ' + d.cliente,
@@ -507,10 +616,10 @@ async function generarPDF(){
       keywords: 'CAMI Cotizacion ' + d.cliente,
       creator: 'CAMI Sistema'
     });
-    
+
     const W=215.9,pL=12,pR=12,cW=W-pL-pR;
     let y=10;
-    
+
     // Logo
     let logoB64='';
     try {
@@ -518,7 +627,7 @@ async function generarPDF(){
       const blob=await r.blob();
       logoB64=await new Promise(res=>{const rd=new FileReader();rd.onloadend=()=>res(rd.result);rd.onerror=()=>res('');rd.readAsDataURL(blob);});
     } catch(e){console.warn('Logo no cargado:',e.message);}
-    
+
     // Header
     const headerH = 34;
     const logoW = 40;
@@ -546,7 +655,7 @@ async function generarPDF(){
     doc.text('Pagina 1',W-pR-folioW/2,y+27,{align:'center'});
     doc.setDrawColor(220);doc.setLineWidth(0.4);doc.line(pL,y+headerH,pL+cW,y+headerH);
     doc.setTextColor(0);y+=headerH+2;
-    
+
     // Datos cliente
     doc.setLineWidth(0.3);doc.setDrawColor(0);doc.rect(pL,y,cW,22);
     doc.setDrawColor(210);doc.setLineWidth(0.2);doc.line(pL+cW-60,y,pL+cW-60,y+22);
@@ -559,15 +668,15 @@ async function generarPDF(){
     doc.setFont('helvetica','normal');doc.setTextColor(120);
     doc.text('Duracion:',pL+cW-58,y+5);doc.text('Fecha:',pL+cW-58,y+13);
     doc.setFont('helvetica','bold');doc.setTextColor(0);
-    doc.text(d.duracion,pL+cW-58,y+10);doc.text(fechaFmt,pL+cW-58,y+18);y+=22;
-    
+    doc.text(duracionTxt,pL+cW-58,y+10);doc.text(fechaFmt,pL+cW-58,y+18);y+=22;
+
     // Titulo
     doc.setFillColor(240,240,240);doc.rect(pL,y,cW,9,'F');
     doc.setFillColor(230,100,30);doc.rect(pL,y,3,9,'F');
     doc.setDrawColor(0);doc.setLineWidth(0.3);doc.rect(pL,y,cW,9);
     doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,26,24);
     doc.text(d.titulo.toUpperCase(),pL+cW/2,y+6,{align:'center'});y+=9;
-    
+
     // Tabla
     const cx={cod:pL,conc:pL+20,und:pL+102,qty:pL+120,pu:pL+138,imp:pL+163};
     const cws={cod:20,conc:82,und:18,qty:18,pu:25,imp:W-pR-pL-163};
@@ -632,28 +741,29 @@ async function generarPDF(){
       doc.text('Autorizado por CAMI',pL+42,y+5,{align:'center'});
       doc.text('Aceptado por el Cliente',pL+cW-42,y+5,{align:'center'});
     }
-    
+
     // Enviar al backend
     const token = getToken();
     if (!token) { btn.disabled=false;btn.textContent='Generar PDF'; return; }
-    
+
     showToast('Subiendo a Drive...','ok');
     const pdfB64 = doc.output('datauristring').split(',')[1];
-    
+
     const resp = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'cotizacion',
         token,
-        cliente: d.cliente, obra: d.obra, lugar: d.lugar, duracion: d.duracion,
+        cliente: d.cliente, obra: d.obra, lugar: d.lugar,
+        duracion: d.duracion, vigencia: d.vigencia, tiempoEntrega: d.tiempoEntrega,
         fecha: d.fecha, titulo: d.titulo,
         subtotal: sub, iva, total,
         pdf: pdfB64
       })
     });
     const result = await resp.json();
-    
+
     if(result.ok) {
       // Descargar PDF localmente con el folio real del backend
       doc.save(result.folio + '.pdf');
