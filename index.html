@@ -4,64 +4,71 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>CAMI — Presupuesto</title>
+<link rel="stylesheet" href="https://alfredoaguado-arch.github.io/cami-app2/theme/v1.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
+/* cami-presupuesto v1.3 — identidad CAMI (navy + naranja + papel + Sora/DM Sans) */
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#EFEFED;font-family:'Courier New',monospace;min-height:100vh;padding:1.5rem 1rem}
-.container{max-width:820px;margin:0 auto;background:#fff;border:0.5px solid #d3d1c7;border-radius:10px;overflow:hidden}
-.masthead{background:#1a1a18;display:flex;align-items:center;justify-content:space-between;padding:14px 2rem}
-.logo-txt{font-size:22px;font-weight:900;color:#fff;letter-spacing:.2em}
-.sub-logo{font-size:8px;color:#888780;letter-spacing:.04em;margin-top:3px}
-.masthead-right{text-align:right}
-.doc-title{font-size:11px;color:#888780;letter-spacing:.1em;text-transform:uppercase}
-.doc-sub{font-size:15px;font-weight:700;color:#fff;margin-top:2px}
-.form-body{padding:1.5rem 2rem}
+body.cami-themed{min-height:100vh;padding:1.5rem 1rem;font-size:14px}
+.container{max-width:820px;margin:0 auto;background:#fff;border:1px solid var(--cami-rule);border-radius:var(--cami-radius);overflow:hidden;box-shadow:var(--cami-shadow-sm)}
+.masthead{background:var(--cami-navy-grad);display:flex;align-items:center;justify-content:space-between;padding:18px 2rem;position:relative;overflow:hidden}
+.masthead::after{content:'';position:absolute;right:0;top:0;bottom:0;width:6px;background:var(--cami-orange)}
+.logo-txt{font-family:var(--cami-font-display);font-size:22px;font-weight:700;color:var(--cami-paper);letter-spacing:0;line-height:1}
+.sub-logo{font-family:var(--cami-font-display);font-size:8px;color:var(--cami-paper-on-navy);letter-spacing:.18em;text-transform:uppercase;margin-top:5px;font-weight:600}
+.masthead-right{text-align:right;display:flex;flex-direction:column;gap:4px}
+.doc-title{font-family:var(--cami-font-display);font-size:9px;font-weight:600;color:var(--cami-orange);letter-spacing:.22em;text-transform:uppercase;line-height:1}
+.doc-sub{font-family:var(--cami-font-display);font-size:15px;font-weight:600;color:var(--cami-paper);margin-top:2px;letter-spacing:0;line-height:1}
+.form-body{padding:1.5rem 2rem;background:#fff}
 .section{margin-bottom:1.25rem}
-.section-title{font-size:11px;font-weight:700;color:#4A4A48;letter-spacing:.1em;text-transform:uppercase;border-bottom:0.5px solid #d3d1c7;padding-bottom:8px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
-.fl{font-size:11px;color:#888780;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;display:block}
-.req{color:#A32D2D}
+.section-title{font-family:var(--cami-font-display);font-size:11px;font-weight:600;color:var(--cami-navy);letter-spacing:.14em;text-transform:uppercase;border-bottom:1px solid var(--cami-rule);padding-bottom:10px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;position:relative}
+.section-title::after{content:'';position:absolute;left:0;bottom:-1px;width:48px;height:2px;background:var(--cami-fusion-grad)}
+.fl{font-family:var(--cami-font-display);font-size:10px;font-weight:600;color:var(--cami-ink-soft);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px;display:block}
+.req{color:var(--cami-red)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-input,select,textarea{width:100%;padding:9px 11px;border:0.5px solid #d3d1c7;border-radius:6px;font-family:'Courier New',monospace;font-size:13px;background:#fafaf8;color:#1a1a18;outline:none;transition:border .15s}
-input:focus,select:focus,textarea:focus{border-color:#4A4A48;background:#fff}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--cami-rule);border-radius:var(--cami-radius-sm);font-family:var(--cami-font-body);font-size:13px;background:#fff;color:var(--cami-ink);outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--cami-orange)}
 textarea{resize:vertical;min-height:60px}
 .input-suffix{display:flex;gap:8px;align-items:center}
 .input-suffix input{flex:1;min-width:0}
-.input-suffix .sfx{font-size:10px;color:#888780;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;font-weight:700}
+.input-suffix .sfx{font-family:var(--cami-font-display);font-size:10px;color:var(--cami-ink-soft);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;font-weight:600}
 .partidas-wrap{overflow-x:auto;margin-bottom:.75rem}
 .pt{width:100%;border-collapse:collapse;font-size:12px;min-width:700px}
-.pt th{background:#f5f3ee;color:#888780;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:7px 8px;text-align:left;border-bottom:0.5px solid #d3d1c7;font-size:10px}
-.pt td{padding:5px;border-bottom:0.5px solid #EFEFED;vertical-align:top}
-.pt td input,.pt td select{padding:6px 7px;font-size:11px}
-.group-row td{background:#1a1a18;color:#fff;font-weight:700;font-size:11px;padding:5px 8px}
-.group-row input{background:transparent;color:#fff;border:none;font-weight:700;font-size:11px;padding:2px}
-.imp-val{font-weight:700;color:#4A4A48;font-size:11px}
-.btn-add-group,.btn-add-item{background:#EFEFED;color:#4A4A48;border:0.5px solid #D3D1C7;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:'Courier New',monospace}
-.btn-add-group:hover,.btn-add-item:hover{background:#D3D1C7}
-.btn-del{background:none;border:none;color:#d3d1c7;font-size:15px;cursor:pointer;padding:0 3px}
-.btn-del:hover{color:#A32D2D}
+.pt th{background:var(--cami-paper);font-family:var(--cami-font-display);color:var(--cami-ink-soft);font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:9px 8px;text-align:left;border-bottom:1px solid var(--cami-rule);font-size:10px}
+.pt td{padding:5px;border-bottom:1px solid var(--cami-paper);vertical-align:top}
+.pt td input,.pt td select{padding:7px 8px;font-size:11px}
+.group-row td{background:var(--cami-navy);color:var(--cami-paper);font-family:var(--cami-font-display);font-weight:600;font-size:11px;padding:7px 10px;letter-spacing:.04em}
+.group-row input{background:transparent;color:var(--cami-paper);border:none;font-family:var(--cami-font-display);font-weight:600;font-size:11px;padding:2px;letter-spacing:.04em}
+.imp-val{font-family:var(--cami-font-display);font-weight:600;color:var(--cami-navy);font-size:11px}
+.btn-add-group,.btn-add-item{background:var(--cami-paper);color:var(--cami-navy);border:1px solid var(--cami-rule);border-radius:var(--cami-radius-sm);padding:7px 13px;font-family:var(--cami-font-display);font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.04em;transition:all .15s}
+.btn-add-group:hover,.btn-add-item:hover{background:var(--cami-paper-2);border-color:var(--cami-rule-2)}
+.btn-del{background:none;border:none;color:var(--cami-rule-2);font-size:15px;cursor:pointer;padding:0 3px;transition:color .15s}
+.btn-del:hover{color:var(--cami-red)}
 .totals{text-align:right;margin-top:.5rem}
 .totals table{margin-left:auto;border-collapse:collapse;min-width:260px}
-.totals td{padding:4px 12px;color:#4A4A48;font-size:13px}
-.totals td:last-child{font-weight:700;text-align:right}
-.total-final td{font-size:15px;border-top:1px solid #4A4A48;padding-top:8px}
-.letras{font-size:11px;color:#4A4A48;font-style:italic;margin-top:.5rem;padding:8px 12px;background:#f5f3ee;border-radius:4px;border:0.5px solid #d3d1c7}
+.totals td{padding:5px 12px;color:var(--cami-ink-soft);font-family:var(--cami-font-body);font-size:13px}
+.totals td:last-child{font-family:var(--cami-font-display);font-weight:600;text-align:right;color:var(--cami-navy)}
+.total-final td{font-size:15px;border-top:2px solid var(--cami-navy);padding-top:10px;color:var(--cami-navy)}
+.letras{font-family:var(--cami-font-body);font-size:11px;color:var(--cami-ink-soft);font-style:italic;margin-top:.5rem;padding:10px 14px;background:var(--cami-paper);border-radius:var(--cami-radius-sm);border:1px solid var(--cami-rule)}
 .cond-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start}
-.cond-num{padding:10px 0;font-size:11px;color:#888780;min-width:28px;font-weight:700;text-align:right}
+.cond-num{padding:11px 0;font-family:var(--cami-font-display);font-size:11px;color:var(--cami-ink-soft);min-width:28px;font-weight:600;text-align:right}
 .cond-row textarea{flex:1;font-size:12px;min-height:48px}
-.cond-help{font-size:10px;color:#888780;margin-top:6px;font-style:italic}
+.cond-help{font-family:var(--cami-font-body);font-size:11px;color:var(--cami-ink-soft);margin-top:6px;font-style:italic}
 .btn-row{display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap}
-.btn-pdf{flex:1;min-width:140px;padding:13px;background:#4A4A48;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Courier New',monospace;letter-spacing:.04em;transition:background .15s}
-.btn-pdf:hover{background:#333331}
-.btn-pdf:disabled{background:#d3d1c7;cursor:not-allowed}
-.toast{display:none;padding:10px 16px;border-radius:6px;font-size:12px;margin-top:10px;line-height:1.6}
+.btn-pdf{flex:1;min-width:140px;padding:13px;background:var(--cami-orange);color:#fff;border:none;border-radius:var(--cami-radius);font-family:var(--cami-font-display);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;transition:background .15s}
+.btn-pdf:hover{background:var(--cami-orange-mid)}
+.btn-pdf:active{background:var(--cami-prima-red)}
+.btn-pdf:disabled{background:var(--cami-rule-2);cursor:not-allowed}
+.btn-row .btn-pdf:nth-child(n+2){background:#fff;color:var(--cami-navy);border:1px solid var(--cami-rule)}
+.btn-row .btn-pdf:nth-child(n+2):hover{background:var(--cami-paper);border-color:var(--cami-orange)}
+.toast{display:none;padding:11px 16px;border-radius:var(--cami-radius-sm);font-family:var(--cami-font-body);font-size:12px;margin-top:10px;line-height:1.6}
 .toast.show{display:block}
-.toast.ok{background:#EAF3DE;color:#3B6D11;border:0.5px solid #C0DD97}
-.toast.err{background:#FCEBEB;color:#A32D2D;border:0.5px solid #F7C1C1}
-@media(max-width:580px){.form-body{padding:1rem}.grid2,.grid3{grid-template-columns:1fr}.btn-row{flex-direction:column}.masthead{padding:12px 1rem}}
+.toast.ok{background:var(--cami-green-bg);color:var(--cami-green);border:1px solid var(--cami-green)}
+.toast.err{background:var(--cami-red-bg);color:var(--cami-red);border:1px solid var(--cami-red)}
+@media(max-width:580px){.form-body{padding:1rem}.grid2,.grid3{grid-template-columns:1fr}.btn-row{flex-direction:column}.masthead{padding:14px 1rem}body.cami-themed{padding:1rem .5rem}}
 </style>
 </head>
-<body>
+<body class="cami-themed">
 <div class="container">
   <div class="masthead">
     <div>
